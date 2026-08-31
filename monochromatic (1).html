@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monochromatic</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f4f0;
+    --mid: #888;
+    --border: #d0cfc9;
+    --glow: rgba(10,10,10,0.06);
+    --chrome-h: 108px;
+  }
+
+  html, body { height: 100%; background: var(--paper); color: var(--ink); font-family: 'Syne', sans-serif; overflow: hidden; }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    pointer-events: none; z-index: 9999; opacity: .6;
+  }
+
+  /* Chrome */
+  #chrome { position: fixed; top: 0; left: 0; right: 0; height: var(--chrome-h); background: var(--paper); border-bottom: 1.5px solid var(--border); z-index: 100; display: flex; flex-direction: column; box-shadow: 0 2px 24px var(--glow); }
+  #wordmark-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 56px; border-bottom: 1px solid var(--border); }
+  #logo { display: flex; align-items: baseline; gap: 10px; }
+  #logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.02em; color: var(--ink); text-transform: uppercase; }
+  #chrome-right { display: flex; align-items: center; gap: 12px; }
+  #status-dot { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: 0.08em; }
+  #status-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e88; animation: pulse 2.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  #nav-bar { display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 52px; }
+
+  .nav-btn { width: 30px; height: 30px; border: 1.5px solid var(--border); background: transparent; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); transition: background .15s, border-color .15s; flex-shrink: 0; }
+  .nav-btn:hover  { background: var(--glow); border-color: #aaa; }
+  .nav-btn:active { background: rgba(0,0,0,.1); }
+  .nav-btn svg { width: 14px; height: 14px; }
+
+  #url-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
+  #scheme-badge { position: absolute; left: 10px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .04em; pointer-events: none; white-space: nowrap; transition: opacity .15s; }
+  #url-input { width: 100%; height: 34px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 12px 0 66px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); letter-spacing: .03em; outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
+  #url-input::placeholder { color: #bbb; }
+  #url-input:focus { border-color: var(--ink); background: var(--paper); box-shadow: 0 0 0 3px var(--glow); }
+
+  #go-btn { height: 34px; padding: 0 16px; background: var(--ink); color: var(--paper); border: none; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: opacity .15s, transform .1s; white-space: nowrap; }
+  #go-btn:hover  { opacity: .82; }
+  #go-btn:active { transform: scale(.97); }
+
+  /* Progress */
+  #progress { position: fixed; top: var(--chrome-h); left: 0; height: 2px; width: 0%; background: var(--ink); z-index: 200; opacity: 0; transition: width .3s ease, opacity .3s; }
+  #progress.loading { opacity: 1; animation: progress-run 1.2s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes progress-run { 0%{width:0%} 60%{width:72%} 100%{width:92%} }
+  #progress.done { width: 100% !important; opacity: 0; transition: width .2s ease, opacity .5s .15s; }
+
+  /* Viewport */
+  #viewport { position: fixed; top: var(--chrome-h); left: 0; right: 0; bottom: 0; background: white; }
+  #frame { width: 100%; height: 100%; border: none; display: none; }
+
+  /* Landing */
+  #landing { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; background: var(--paper); overflow-y: auto; padding-bottom: 40px; }
+  #landing-top { display: flex; flex-direction: column; align-items: center; padding-top: 60px; }
+  #landing-mark { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(42px,7vw,90px); letter-spacing: -0.05em; color: var(--ink); line-height: 1; text-align: center; margin-bottom: 12px; animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  #landing-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 32px; animation: fadeUp .7s .1s cubic-bezier(.16,1,.3,1) both; display: flex; align-items: center; gap: 8px; justify-content: center; }
+  #tip-label { opacity: .4; white-space: nowrap; flex-shrink: 0; }
+  #tip-text { transition: opacity .4s ease; }
+  #tip-text.fade { opacity: 0; }
+
+  /* Tabs */
+  #landing-tabs { display: flex; gap: 6px; margin-bottom: 20px; animation: fadeUp .7s .15s cubic-bezier(.16,1,.3,1) both; }
+  .tab-btn { height: 28px; padding: 0 14px; background: transparent; border: 1.5px solid var(--border); border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+  .tab-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .tab-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* Shortcuts grid */
+  #shortcuts-section { width: min(480px,90vw); animation: fadeUp .7s .2s cubic-bezier(.16,1,.3,1) both; }
+  #landing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .quick-link { background: transparent; border: 1.5px solid var(--border); border-radius: 6px; padding: 12px 10px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .05em; text-align: center; transition: border-color .15s, color .15s, background .15s; }
+  .quick-link:hover { border-color: var(--ink); color: var(--ink); background: var(--glow); }
+  .quick-link .ql-icon { display: block; font-size: 18px; margin-bottom: 5px; line-height: 1; }
+
+  /* Games section */
+  #games-section { width: min(760px,94vw); display: none; animation: fadeUp .4s cubic-bezier(.16,1,.3,1) both; }
+  #game-search-wrap { margin-bottom: 16px; }
+  #game-search { width: 100%; height: 34px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); letter-spacing: .03em; outline: none; transition: border-color .15s, box-shadow .15s; }
+  #game-search:focus { border-color: var(--ink); box-shadow: 0 0 0 3px var(--glow); }
+  #game-search::placeholder { color: #bbb; }
+  #games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px; }
+  .game-card { position: relative; background: transparent; border: 1.5px solid var(--border); border-radius: 6px; padding: 10px 8px 9px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .04em; text-align: center; transition: border-color .15s, color .15s, background .15s; overflow: hidden; }
+  .game-card:hover { border-color: var(--ink); color: var(--ink); background: var(--glow); }
+  .game-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 3px; margin-bottom: 7px; display: block; background: var(--border); }
+  .game-card img.error { opacity: 0; height: 0; margin: 0; }
+  .game-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  #games-empty { font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb; letter-spacing: .06em; text-align: center; padding: 40px 0; display: none; }
+
+  /* Error panel */
+  #error-panel { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--paper); font-family: 'DM Mono', monospace; }
+  .err-code { font-size: 64px; font-weight: 300; color: #ddd; letter-spacing: -.02em; }
+  .err-msg  { font-size: 12px; color: var(--mid); letter-spacing: .08em; text-transform: uppercase; }
+  .err-hint { font-size: 10px; color: #bbb; max-width: 340px; text-align: center; line-height: 1.7; }
+  #err-direct-btn { margin-top: 6px; background: var(--ink); color: var(--paper); border: none; border-radius: 5px; padding: 9px 22px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; letter-spacing: .04em; opacity: .85; transition: opacity .15s; }
+  #err-direct-btn:hover { opacity: 1; }
+
+  /* Settings drawer */
+  #settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.18); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  #settings-overlay.open { opacity: 1; pointer-events: all; }
+  #settings-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 310px; background: var(--paper); border-left: 1.5px solid var(--border); z-index: 301; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.16,1,.3,1); box-shadow: -8px 0 40px rgba(0,0,0,.08); }
+  #settings-drawer.open { transform: translateX(0); }
+  #settings-header { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 56px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #settings-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+  #settings-close { width: 28px; height: 28px; border: 1.5px solid var(--border); background: transparent; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); transition: background .15s; }
+  #settings-close:hover { background: var(--glow); }
+  #settings-close svg { width: 12px; height: 12px; }
+  #settings-body { flex: 1; overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 28px; }
+
+  .s-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--mid); margin-bottom: 12px; }
+
+  /* Suggestion modal */
+  #suggest-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 400; opacity: 0; pointer-events: none; transition: opacity .22s; display: flex; align-items: center; justify-content: center; }
+  #suggest-overlay.open { opacity: 1; pointer-events: all; }
+  #suggest-modal { background: var(--paper); border: 1.5px solid var(--border); border-radius: 10px; width: 340px; max-width: calc(100vw - 32px); box-shadow: 0 12px 48px rgba(0,0,0,.14); display: flex; flex-direction: column; transform: scale(.96) translateY(8px); transition: transform .22s cubic-bezier(.16,1,.3,1); }
+  #suggest-overlay.open #suggest-modal { transform: scale(1) translateY(0); }
+  #suggest-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; height: 52px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #suggest-modal-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+  #suggest-close { width: 28px; height: 28px; border: 1.5px solid var(--border); background: transparent; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); transition: background .15s; }
+  #suggest-close:hover { background: var(--glow); }
+  #suggest-close svg { width: 12px; height: 12px; }
+  #suggest-modal-body { padding: 20px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+  #suggest-hint { font-size: 12px; color: var(--mid); line-height: 1.5; }
+  #suggest-textarea { width: 100%; box-sizing: border-box; min-height: 110px; resize: vertical; background: var(--paper); border: 1.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); outline: none; transition: border-color .15s; }
+  #suggest-textarea:focus { border-color: var(--ink); }
+  #suggest-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #suggest-status { font-size: 11px; color: var(--mid); flex: 1; }
+  #suggest-status.ok { color: #3a8a4a; }
+  #suggest-status.err { color: #b94040; }
+  #suggest-submit { background: var(--ink); color: var(--paper); border: none; border-radius: 5px; padding: 8px 18px; font-family: 'DM Mono', monospace; font-size: 12px; cursor: pointer; transition: opacity .15s; white-space: nowrap; }
+  #suggest-submit:disabled { opacity: .45; cursor: default; }
+
+  .theme-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .theme-swatch { border-radius: 6px; padding: 10px 6px 8px; border: 1.5px solid var(--border); cursor: pointer; text-align: center; transition: border-color .15s, transform .1s; display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; }
+  .theme-swatch:hover { border-color: var(--ink); transform: translateY(-1px); }
+  .theme-swatch.active { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  #theme-more-btn { margin-top: 8px; width: 100%; background: transparent; border: 1.5px solid var(--border); border-radius: 5px; padding: 6px 0; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .06em; color: var(--mid); cursor: pointer; transition: border-color .15s, color .15s; }
+  #theme-more-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .sw-preview { width: 32px; height: 20px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); }
+  .sw-name { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .05em; }
+
+  .color-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .color-row-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink); letter-spacing: .03em; }
+  .color-row input[type=color] { width: 40px; height: 28px; border: 1.5px solid var(--border); border-radius: 4px; background: none; cursor: pointer; padding: 2px; }
+
+  .s-input { width: 100%; height: 34px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); letter-spacing: .03em; outline: none; transition: border-color .15s, box-shadow .15s; margin-bottom: 8px; }
+  .s-input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px var(--glow); }
+  .s-select { width: 100%; height: 34px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 10px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink); outline: none; cursor: pointer; }
+  .s-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; letter-spacing: .04em; line-height: 1.6; }
+  .s-apply-btn { margin-top: 10px; width: 100%; height: 32px; background: var(--ink); color: var(--paper); border: none; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: opacity .15s; }
+  .s-apply-btn:hover { opacity: .8; }
+  .s-reset-btn { width: 100%; height: 30px; background: transparent; color: var(--mid); border: 1.5px solid var(--border); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .06em; cursor: pointer; transition: border-color .15s, color .15s; }
+  .s-reset-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  #font-status { font-family: 'DM Mono', monospace; font-size: 9px; margin-top: 6px; letter-spacing: .04em; min-height: 14px; }
+  #font-status.ok  { color: #22c55e; }
+  #font-status.err { color: #ef4444; }
+
+  #shortcut-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; min-height: 4px; }
+  .sc-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 5px; background: rgba(0,0,0,.02); }
+  .sc-icon { font-size: 15px; flex-shrink: 0; }
+  .sc-name { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink); letter-spacing: .03em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sc-del { width: 20px; height: 20px; border: none; background: transparent; cursor: pointer; color: #bbb; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 3px; transition: color .15s, background .15s; flex-shrink: 0; padding: 0; }
+  .sc-del:hover { color: var(--ink); background: var(--glow); }
+  .sc-add-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .sc-add-row .s-input { margin-bottom: 0; }
+  .sc-icon-input { width: 44px !important; flex-shrink: 0; padding: 0 8px !important; text-align: center; }
+
+  
+
+  /* Tab cloak */
+  .cloak-preview { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 5px; background: rgba(0,0,0,.03); margin-bottom: 10px; min-height: 36px; }
+  .cloak-favicon-thumb { width: 16px; height: 16px; border-radius: 2px; object-fit: contain; flex-shrink: 0; }
+  .cloak-tab-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink); letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cloak-file-label { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; border: 1.5px dashed var(--border); border-radius: 5px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .06em; transition: border-color .15s, color .15s; margin-bottom: 8px; }
+  .cloak-file-label:hover { border-color: var(--ink); color: var(--ink); }
+  .cloak-presets-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 7px; margin-top: 12px; }
+  .cloak-presets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-bottom: 10px; }
+  .cloak-preset-btn { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 7px 4px 6px; border: 1.5px solid var(--border); border-radius: 5px; background: transparent; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .03em; text-align: center; transition: border-color .15s, color .15s, background .15s; line-height: 1.2; }
+  .cloak-preset-btn:hover { border-color: var(--ink); color: var(--ink); background: var(--glow); }
+  .cloak-preset-btn img { width: 16px; height: 16px; object-fit: contain; border-radius: 2px; flex-shrink: 0; }
+  .cloak-preset-btn .preset-icon-text { font-size: 14px; line-height: 1; }
+  .cloak-blank-btn { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 8px; padding: 8px 12px; font-size: 10px; }
+
+
+  /* ── Chat ── */
+  #chat-section { width: min(680px,94vw); display: none; flex-direction: column; gap: 0; animation: fadeUp .4s cubic-bezier(.16,1,.3,1) both; height: 420px; }
+  #chat-setup { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 0 20px; }
+  #chat-setup-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .12em; text-transform: uppercase; }
+  #chat-name-row { display: flex; gap: 8px; align-items: center; }
+  #chat-name { height: 34px; width: 200px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); letter-spacing: .03em; outline: none; transition: border-color .15s; }
+  #chat-name:focus { border-color: var(--ink); }
+  #chat-color { width: 34px; height: 34px; border: 1.5px solid var(--border); border-radius: 5px; background: none; cursor: pointer; padding: 2px; flex-shrink: 0; }
+  #chat-join-btn { height: 34px; padding: 0 20px; background: var(--ink); color: var(--paper); border: none; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: opacity .15s; }
+  #chat-join-btn:hover { opacity: .8; }
+
+  #chat-room { display: none; flex-direction: column; height: 100%; }
+  #chat-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-shrink: 0; }
+  #chat-identity { display: flex; align-items: center; gap: 8px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .05em; }
+  #chat-server-row { display: flex; gap: 6px; align-items: center; }
+  #chat-setup-server { height: 28px; width: 260px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 10px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: .02em; outline: none; transition: border-color .15s; }
+  #chat-setup-server:focus { border-color: var(--ink); color: var(--ink); }
+  #chat-server-apply-btn { height: 28px; padding: 0 12px; background: none; color: var(--ink); border: 1.5px solid var(--border); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .04em; cursor: pointer; transition: border-color .15s; white-space: nowrap; }
+  #chat-server-apply-btn:hover { border-color: var(--ink); }
+  #chat-server-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .04em; opacity: .7; }
+    #chat-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  #chat-conn-status { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+  #chat-conn-status.connected { color: #22c55e; }
+  #chat-conn-status.disconnected { color: #ef4444; }
+  #chat-conn-status.connecting { color: #f59e0b; }
+  #chat-leave-btn { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .06em; background: none; border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px; cursor: pointer; transition: border-color .15s, color .15s; }
+  #chat-leave-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  #chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+  #chat-messages::-webkit-scrollbar { width: 4px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .chat-msg { display: flex; flex-direction: column; gap: 1px; }
+  .chat-msg-header { display: flex; align-items: baseline; gap: 7px; }
+  .chat-msg-name { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: .03em; }
+  .chat-msg-time { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); opacity: .6; }
+  .chat-msg-text { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink); letter-spacing: .02em; line-height: 1.5; padding-left: 2px; word-break: break-word; }
+  .chat-system { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--mid); letter-spacing: .08em; text-align: center; padding: 4px 0; opacity: .7; }
+
+  #chat-input-row { display: flex; gap: 6px; margin-top: 10px; flex-shrink: 0; }
+  #chat-input { flex: 1; height: 34px; background: rgba(0,0,0,.04); border: 1.5px solid var(--border); border-radius: 5px; padding: 0 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); letter-spacing: .03em; outline: none; transition: border-color .15s; }
+  #chat-input:focus { border-color: var(--ink); }
+  #chat-send-btn { height: 34px; padding: 0 16px; background: var(--ink); color: var(--paper); border: none; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: opacity .15s; white-space: nowrap; flex-shrink: 0; }
+  #chat-send-btn:hover { opacity: .8; }
+  #chat-empty { font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb; letter-spacing: .06em; text-align: center; padding: 20px 0; }
+
+  /* Panic key */
+  .panic-key-display { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 28px; padding: 0 8px; background: rgba(0,0,0,.06); border: 1.5px solid var(--border); border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink); letter-spacing: .04em; cursor: pointer; transition: border-color .15s, background .15s; }
+  .panic-key-display:hover { border-color: var(--ink); }
+  .panic-key-display.listening { border-color: var(--ink); background: rgba(0,0,0,.1); animation: pulse 1s ease-in-out infinite; }
+  #panic-status { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; letter-spacing: .04em; margin-top: 4px; min-height: 14px; }
+  #panic-status.set { color: #22c55e; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="chrome">
+  <div id="wordmark-bar">
+    <div id="logo">
+      <span id="logo-text">Monochromatic</span>
+    </div>
+    <div id="chrome-right">
+      <div id="status-dot">Secure</div>
+      <button class="nav-btn" id="suggest-btn" title="Suggestion Box">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 10.5a1.5 1.5 0 0 1-1.5 1.5H4.5L2 14.5V3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5z"/>
+          <line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="8.5" y2="9"/>
+        </svg>
+      </button>
+      <button class="nav-btn" id="settings-btn" title="Settings">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="2.2"/>
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div id="nav-bar">
+    <button class="nav-btn" id="btn-back" title="Back">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>
+    </button>
+    <button class="nav-btn" id="btn-fwd" title="Forward">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,3 11,8 6,13"/></svg>
+    </button>
+    <button class="nav-btn" id="btn-reload" title="Reload">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8A5.5 5.5 0 1 1 10 3.1"/><polyline points="10,1 10,4 13,4"/></svg>
+    </button>
+    <button class="nav-btn" id="btn-home" title="Home">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7L8 2l6 5"/><rect x="5" y="9" width="6" height="5" rx="1"/></svg>
+    </button>
+    <div id="url-wrapper">
+      <span id="scheme-badge">https://</span>
+      <input id="url-input" type="text" placeholder="Search or enter a URL…" autocomplete="off" spellcheck="false"/>
+    </div>
+    <button class="nav-btn" id="btn-fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1,5 1,1 5,1"/><polyline points="11,1 15,1 15,5"/>
+        <polyline points="15,11 15,15 11,15"/><polyline points="5,15 1,15 1,11"/>
+      </svg>
+    </button>
+    <button class="nav-btn" id="btn-newtab" title="Open in new tab">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/>
+        <polyline points="10,1 15,1 15,6"/>
+        <line x1="15" y1="1" x2="7" y2="9"/>
+      </svg>
+    </button>
+    <button id="go-btn">Go</button>
+  </div>
+</div>
+
+<div id="progress"></div>
+
+<div id="viewport">
+  <div id="landing">
+    <div id="landing-top">
+      <div id="landing-mark">mono<br>chromatic</div>
+      <div id="landing-sub"><span id="tip-label">tip —</span><span id="tip-text">Search or enter a URL above</span></div>
+      <div id="landing-tabs">
+        <button class="tab-btn active" data-tab="shortcuts">Shortcuts</button>
+        <button class="tab-btn" data-tab="games">Games</button>
+        <button class="tab-btn" data-tab="chat">Chat</button>
+      </div>
+    </div>
+
+    <div id="shortcuts-section">
+      <div id="landing-grid"></div>
+    </div>
+
+    <div id="games-section">
+      <div id="game-search-wrap">
+        <input id="game-search" type="text" placeholder="Search 800+ games…" autocomplete="off" spellcheck="false"/>
+      </div>
+      <div id="games-grid"></div>
+      <div id="games-empty">No games found</div>
+    </div>
+  </div>
+    <div id="chat-section">
+      <div id="chat-setup">
+        <div id="chat-setup-title">Global Chatroom</div>
+        <div id="chat-name-row">
+          <input id="chat-name" type="text" placeholder="Your name…" maxlength="32" autocomplete="off" spellcheck="false"/>
+          <input id="chat-color" type="color" value="#6366f1" title="Pick your color"/>
+          <button id="chat-join-btn">Join</button>
+        </div>
+        <div id="chat-server-row">
+          <input id="chat-setup-server" type="text" placeholder="wss://your-server.example.com/api/chat" autocomplete="off" spellcheck="false"/>
+          <button id="chat-server-apply-btn">Apply</button>
+        </div>
+        <div id="chat-server-hint">Paste a WebSocket chat server URL so messages sync for everyone. Run the included chat-server.js on Railway, Render, or Replit (free), then paste its wss:// URL here.</div>
+      </div>
+      <div id="chat-room">
+        <div id="chat-header">
+          <div id="chat-identity">
+            <span id="chat-color-dot"></span>
+            <span id="chat-display-name"></span>
+          </div>
+          <span id="chat-conn-status" class="disconnected">Disconnected</span>
+          <button id="chat-leave-btn">Leave</button>
+        </div>
+        <div id="chat-messages">
+          <div class="chat-system">Loading history…</div>
+        </div>
+        <div id="chat-input-row">
+          <input id="chat-input" type="text" placeholder="Message…" maxlength="500" autocomplete="off" spellcheck="false"/>
+          <button id="chat-send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+
+  <iframe id="frame" allowfullscreen allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-downloads allow-modals allow-orientation-lock allow-presentation"></iframe>
+
+  <div id="error-panel">
+    <div class="err-code" id="err-code">ERR</div>
+    <div class="err-msg" id="err-msg">Cannot reach destination</div>
+    <div class="err-hint" id="err-hint">The site may have blocked embedding, or the URL may be unreachable.</div>
+    <button id="err-direct-btn" style="display:none;">Try Direct Load</button>
+  </div>
+</div>
+
+<div id="suggest-overlay">
+  <div id="suggest-modal">
+    <div id="suggest-modal-header">
+      <span id="suggest-modal-title">Suggestion Box</span>
+      <button id="suggest-close">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/>
+        </svg>
+      </button>
+    </div>
+    <div id="suggest-modal-body">
+      <div id="suggest-hint">Have an idea, bug report, or feature request? Send it directly to the developer.</div>
+      <textarea id="suggest-textarea" placeholder="Type your suggestion here…" maxlength="2000"></textarea>
+      <div id="suggest-footer">
+        <span id="suggest-status"></span>
+        <button id="suggest-submit">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="settings-overlay"></div>
+<div id="settings-drawer">
+  <div id="settings-header">
+    <span id="settings-title">Settings</span>
+    <button id="settings-close">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/>
+      </svg>
+    </button>
+  </div>
+  <div id="settings-body">
+    <div>
+      <div class="s-section-label">Chat Server</div>
+      <input class="s-input" id="chat-server-url" type="text" placeholder="wss://your-server.example.com/api/chat" autocomplete="off" spellcheck="false" style="margin-bottom:4px;">
+      <div class="s-hint">Required for sitewide chat. Deploy chat-server.js (free on Railway / Render / Replit), then paste the wss:// URL here. Leave blank only if this HTML is hosted next to the chat backend.</div>
+      <button class="s-apply-btn" id="chat-server-save-btn" style="margin-top:6px;">Save & Reconnect</button>
+    </div>
+    <div>
+      <div class="s-section-label">Proxy Provider</div>
+      <select class="s-select" id="proxy-select">
+        <option value="auto" selected>Auto (race all working)</option>
+        <option value="corssh">cors.sh</option>
+        <option value="corsproxy_sh">proxy.cors.sh</option>
+        <option value="corseu">cors.eu.org</option>
+        <option value="allorigins">AllOrigins (fallback)</option>
+        <option value="corsproxy">CORSProxy.org (fallback)</option>
+        <option value="corslol">cors.lol (fallback)</option>
+      </select>
+      <div class="s-hint" style="margin-top:5px;">Auto races the live providers in parallel and uses the first success. Pick one manually only if Auto misbehaves on your network.</div>
+    </div>
+    <div>
+      <div class="s-section-label">Search Engine</div>
+      <select class="s-select" id="search-engine">
+        <option value="duckduckgo">DuckDuckGo</option>
+        <option value="google">Google</option>
+        <option value="bing">Bing</option>
+        <option value="brave">Brave Search</option>
+      </select>
+    </div>
+    <div>
+      <div class="s-section-label">Shortcuts</div>
+      <div id="shortcut-list"></div>
+      <div class="sc-add-row">
+        <input class="s-input sc-icon-input" id="sc-icon" type="text" placeholder="📌" maxlength="2">
+        <input class="s-input" id="sc-name" type="text" placeholder="Name" autocomplete="off">
+      </div>
+      <input class="s-input" id="sc-url" type="text" placeholder="https://example.com" autocomplete="off" spellcheck="false">
+      <button class="s-apply-btn" id="sc-add-btn">+ Add Shortcut</button>
+    </div>
+    <div>
+      <div class="s-section-label">Theme</div>
+      <div class="theme-grid">
+        <button class="theme-swatch active" data-theme="default"><div class="sw-preview" style="background:#f5f4f0"></div><span class="sw-name">Default</span></button>
+        <button class="theme-swatch" data-theme="dark"><div class="sw-preview" style="background:#0f0f0f"></div><span class="sw-name">Dark</span></button>
+        <button class="theme-swatch" data-theme="sepia"><div class="sw-preview" style="background:#f4efe6"></div><span class="sw-name">Sepia</span></button>
+        <button class="theme-swatch" data-theme="slate"><div class="sw-preview" style="background:#1e2430"></div><span class="sw-name">Slate</span></button>
+        <button class="theme-swatch" data-theme="rose"><div class="sw-preview" style="background:#fff1f2"></div><span class="sw-name">Rose</span></button>
+        <button class="theme-swatch" data-theme="forest"><div class="sw-preview" style="background:#0d1f12"></div><span class="sw-name">Forest</span></button>
+      </div>
+      <button id="theme-more-btn">Show more ▾</button>
+      <div class="theme-grid" id="theme-extended" style="display:none;margin-top:8px;">
+        <button class="theme-swatch" data-theme="ocean"><div class="sw-preview" style="background:#0c1e2e"></div><span class="sw-name">Ocean</span></button>
+        <button class="theme-swatch" data-theme="midnight"><div class="sw-preview" style="background:#0d0b1e"></div><span class="sw-name">Midnight</span></button>
+        <button class="theme-swatch" data-theme="lavender"><div class="sw-preview" style="background:#f0edf8"></div><span class="sw-name">Lavender</span></button>
+        <button class="theme-swatch" data-theme="sand"><div class="sw-preview" style="background:#faf4e6"></div><span class="sw-name">Sand</span></button>
+        <button class="theme-swatch" data-theme="mint"><div class="sw-preview" style="background:#edf8f2"></div><span class="sw-name">Mint</span></button>
+        <button class="theme-swatch" data-theme="coffee"><div class="sw-preview" style="background:#180e08"></div><span class="sw-name">Coffee</span></button>
+        <button class="theme-swatch" data-theme="crimson"><div class="sw-preview" style="background:#1a0808"></div><span class="sw-name">Crimson</span></button>
+        <button class="theme-swatch" data-theme="steel"><div class="sw-preview" style="background:#f2f4f6"></div><span class="sw-name">Steel</span></button>
+        <button class="theme-swatch" data-theme="amber"><div class="sw-preview" style="background:#fff8e8"></div><span class="sw-name">Amber</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="s-section-label">Custom Colors</div>
+      <div class="color-row"><span class="color-row-label">Text</span><input type="color" id="color-ink" value="#0a0a0a"></div>
+      <div class="color-row"><span class="color-row-label">Background</span><input type="color" id="color-paper" value="#f5f4f0"></div>
+      <div class="color-row"><span class="color-row-label">Border</span><input type="color" id="color-border" value="#d0cfc9"></div>
+    </div>
+    <div>
+      <div class="s-section-label">UI Font</div>
+      <input class="s-input" id="font-input" type="text" placeholder="e.g. Playfair Display" autocomplete="off" spellcheck="false">
+      <div class="s-hint">Any Google Fonts name — hit Apply or Enter.</div>
+      <div id="font-status"></div>
+      <button class="s-apply-btn" id="font-apply-btn">Apply Font</button>
+    </div>
+    <div>
+      <div class="s-section-label">Tab Cloak</div>
+      <div class="cloak-preview">
+        <img id="cloak-favicon-thumb" class="cloak-favicon-thumb" src="" alt="" style="display:none;">
+        <span id="cloak-tab-label" class="cloak-tab-label" style="color:var(--mid);">No cloak active</span>
+      </div>
+      <div class="cloak-presets-label">Presets</div>
+      <div class="cloak-presets-grid" id="cloak-presets-grid">
+        <button class="cloak-preset-btn" data-preset="schoology"><img src="data:image/png;base64,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" alt=""><span>Schoology</span></button>
+        <button class="cloak-preset-btn" data-preset="classroom"><img src="https://ssl.gstatic.com/classroom/favicon.png" alt=""><span>Classroom</span></button>
+        <button class="cloak-preset-btn" data-preset="google"><img src="https://www.google.com/favicon.ico" alt=""><span>Google</span></button>
+        <button class="cloak-preset-btn" data-preset="clever"><img src="data:image/png;base64,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" alt=""><span>Clever</span></button>
+        <button class="cloak-preset-btn" data-preset="ixl"><img src="https://www.ixl.com/favicon.ico" alt=""><span>IXL</span></button>
+        <button class="cloak-preset-btn" data-preset="edpuzzle"><img src="data:image/png;base64,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" alt=""><span>EdPuzzle</span></button>
+        <button class="cloak-preset-btn" data-preset="nearpod"><img src="https://nearpod.com/favicon.ico" alt=""><span>Nearpod</span></button>
+        <button class="cloak-preset-btn" data-preset="slides"><img src="https://ssl.gstatic.com/docs/presentations/images/favicon5.ico" alt=""><span>Slides</span></button>
+        <button class="cloak-preset-btn" data-preset="docs"><img src="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" alt=""><span>Docs</span></button>
+        <button class="cloak-preset-btn" data-preset="mcgraw"><img src="https://www.mheducation.com/favicon.ico" alt=""><span>McGraw Hill</span></button>
+        <button class="cloak-preset-btn cloak-blank-btn" data-preset="aboutblank"><span class="preset-icon-text">&#9654;</span><span>Open in about:blank</span></button>
+      </div>
+      <input class="s-input" id="cloak-title" type="text" placeholder="Tab title (e.g. Google Classroom)" autocomplete="off" spellcheck="false" style="margin-bottom:8px;">
+      <label class="cloak-file-label" for="cloak-file-input">
+        &#128247; Upload favicon image
+        <input type="file" id="cloak-file-input" accept="image/*" style="display:none;">
+      </label>
+      <input class="s-input" id="cloak-icon-url" type="text" placeholder="Or paste icon URL…" autocomplete="off" spellcheck="false" style="margin-bottom:4px;">
+      <div class="s-hint">Image overrides URL. Leave blank to keep current favicon.</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="s-apply-btn" id="cloak-apply-btn" style="flex:1;">Apply Cloak</button>
+        <button class="s-reset-btn" id="cloak-clear-btn" style="flex:0 0 auto;width:auto;padding:0 12px;">Clear</button>
+      </div>
+    </div>
+    <div>
+      <div class="s-section-label">Panic Key</div>
+      <div class="color-row" style="margin-bottom:8px;">
+        <span class="color-row-label">Key</span>
+        <button class="panic-key-display" id="panic-key-btn" title="Click then press a key">—</button>
+      </div>
+      <input class="s-input" id="panic-url" type="text" placeholder="https://google.com" autocomplete="off" spellcheck="false" style="margin-bottom:4px;">
+      <div class="s-hint">Press the panic key anywhere to instantly navigate to the redirect URL above.</div>
+      <div id="panic-status"></div>
+      <button class="s-apply-btn" id="panic-save-btn" style="margin-top:8px;">Save Panic Key</button>
+    </div>
+    <div>
+        <button class="s-reset-btn" id="reset-btn">Reset to Defaults</button>
+      </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var HTML_URL = 'https://cdn.jsdelivr.net/gh/freebuisness/html@main';
+  var COVER_URL = 'https://cdn.jsdelivr.net/gh/freebuisness/covers@main';
+
+  // All games from zones.json — real names & URLs
+  var GAMES=[{id:816,n:"-3",u:"816.html"},{id:817,n:"-b",u:"817-f.html"},{id:653,n:"1 Date Danger",u:"653-f.html"},{id:430,n:"10 Minutes Till Dawn",u:"430.html"},{id:295,n:"12 Mini Battles",u:"295.html"},{id:58,n:"1v1.LoL",u:"58.html"},{id:819,n:"20 Minutes Till Dawn",u:"819-fix2.html"},{id:114,n:"2048",u:"114-f.html"},{id:375,n:"2048 Merge Run",u:"375.html"},{id:663,n:"3D Bolt Master",u:"663.html"},{id:320,n:"3D Bowling",u:"320.html"},{id:732,n:"64 in 1 NES",u:"732.html"},{id:146,n:"8 Ball Classic",u:"146.html"},{id:115,n:"8 Ball Pool",u:"115.html"},{id:431,n:"99 Balls",u:"431.html"},{id:258,n:"A Bite at Freddy's",u:"258.html"},{id:59,n:"A Dance of Fire and Ice",u:"59.html"},{id:672,n:"A Difficult Game About Climbing",u:"672-2.html"},{id:719,n:"A Game About Feeding A Black Hole",u:"719.html"},{id:435,n:"A Small World Cup",u:"435.html"},{id:432,n:"Abandoned",u:"432.html"},{id:823,n:"Ace Attorney Investigations - Miles Edgeworth",u:"823-fix.html"},{id:60,n:"Achievement Unlocked",u:"60.html"},{id:61,n:"Achievement Unlocked 2",u:"61.html"},{id:62,n:"Achievement Unlocked 3",u:"62.html"},{id:354,n:"Adventure Capatalist",u:"354-a.html"},{id:443,n:"Adventure Drivers",u:"443.html"},{id:444,n:"Ages of Conflict",u:"444.html"},{id:304,n:"Alien Hominid",u:"304.html"},{id:450,n:"Amanda the Adventurer",u:"450.html"},{id:26,n:"Amaze",u:"26.html"},{id:426,n:"Andy's Apple Farm",u:"426.html"},{id:63,n:"Angry Birds",u:"63.html"},{id:316,n:"Angry Birds Chrome",u:"316.html"},{id:147,n:"Angry Birds Showdown",u:"147.html"},{id:828,n:"Animal Crossing (GAMECUBE)",u:"828.html"},{id:711,n:"Antonblast",u:"711.html"},{id:783,n:"Apes vs Helium",u:"783.html"},{id:821,n:"Apollo Justice - Ace Attorney",u:"821-fix.html"},{id:448,n:"Aquapark.io",u:"448.html"},{id:148,n:"Archery World Tour",u:"148.html"},{id:645,n:"Arthur's Nightmare",u:"645-e.html"},{id:13,n:"Attack Hole",u:"13.html"},{id:552,n:"Aviamasters",u:"552.html"},{id:436,n:"Awesome Tanks",u:"436.html"},{id:438,n:"Awesome Tanks 2",u:"438.html"},{id:64,n:"Backrooms",u:"64-fix.html"},{id:268,n:"Bacon May Die",u:"268.html"},{id:269,n:"Bad Ice Cream",u:"269.html"},{id:270,n:"Bad Ice Cream 2",u:"270.html"},{id:271,n:"Bad Ice Cream 3",u:"271.html"},{id:522,n:"Bad Monday Simulator",u:"522.html"},{id:166,n:"Bad Parenting 1",u:"166.html"},{id:752,n:"Bad Piggies",u:"752.html"},{id:472,n:"Bad Time Simulator",u:"472.html"},{id:65,n:"Baldi's Basics",u:"65-fixed.html"},{id:466,n:"Baldi's Basics Classic Remastered",u:"466.html"},{id:467,n:"Baldi's Basics Plus",u:"467-updatee.html"},{id:815,n:"Baldi's Basics The Ultra Decompile",u:"815.html"},{id:149,n:"Ball Blast",u:"149.html"},{id:697,n:"Bank Robbery",u:"697.html"},{id:439,n:"Bank Robbery 2",u:"439.html"},{id:698,n:"Bank Robbery 3",u:"698.html"},{id:775,n:"Bart Bash",u:"775.html"},{id:740,n:"Bart Blast",u:"740.html"},{id:547,n:"Baseball Bros",u:"547.html"},{id:25,n:"Basket Battle",u:"25.html"},{id:285,n:"Basket Bros",u:"285.html"},{id:66,n:"Basket Random",u:"66.html"},{id:28,n:"Basketball Frvr",u:"28.html"},{id:272,n:"Basketball Stars",u:"272.html"},{id:29,n:"Bazooka Boy",u:"29.html"},{id:787,n:"BeatBlock",u:"787.html"},{id:215,n:"Bendy and the Ink Machine",u:"215.html"},{id:803,n:"Bendy and the Ink Machine: ALL CHAPTERS",u:"803-fix.html"},{id:455,n:"BERGENTRUCK 201x",u:"455.html"},{id:637,n:"BFDIA 5b",u:"637-f.html"},{id:638,n:"BFDIA 5b: 5*30",u:"638-f.html"},{id:69,n:"Big ICE Tower Tiny Square",u:"69.html"},{id:68,n:"Big NEON Tower Tiny Square",u:"68.html"},{id:67,n:"Big Tower Tiny Square",u:"67-f.html"},{id:170,n:"Big Tower Tiny Square 2",u:"170.html"},{id:350,n:"Binding of Issac: Wrath of the Lamb",u:"350.html"},{id:561,n:"BitGun.io",u:"561.html"},{id:70,n:"BitLife",u:"70.html"},{id:330,n:"BitPlanes",u:"330.html"},{id:312,n:"BlackJack",u:"312.html"},{id:167,n:"Blade Ball",u:"167.html"},{id:6,n:"Block Blast",u:"6.html"},{id:273,n:"BlockPost",u:"273.html"},{id:168,n:"Blocky Snakes",u:"168.html"},{id:454,n:"BLOODMONEY!",u:"454.html"},{id:71,n:"Bloons TD",u:"71.html"},{id:72,n:"Bloons TD 2",u:"72.html"},{id:73,n:"Bloons TD 3",u:"73.html"},{id:74,n:"Bloons TD 4",u:"74.html"},{id:75,n:"Bloons TD 5",u:"75-fix.html"},{id:169,n:"Bloxorz",u:"169.html"},{id:353,n:"Blumgi Rocket",u:"353.html"},{id:76,n:"Bob The Robber 2",u:"76-fix.html"},{id:562,n:"Boom Slingers: Reboom",u:"562.html"},{id:30,n:"Bottle Jump 3D",u:"30.html"},{id:437,n:"Bouncemasters",u:"437.html"},{id:0,n:"Bowmasters",u:"0.html"},{id:77,n:"Boxing Random",u:"77.html"},{id:121,n:"Brawl Guys.io",u:"121.html"},{id:755,n:"Brawl Simulator 3D",u:"755.html"},{id:753,n:"Breaklock",u:"753.html"},{id:726,n:"Breath of the Wild NDS",u:"726.html"},{id:14,n:"Bridge Race",u:"14.html"},{id:723,n:"Brotato",u:"723.html"},{id:205,n:"Buckshot Roulette",u:"205-f.html"},{id:376,n:"Build a Big Army",u:"376.html"},{id:377,n:"Build a Plane",u:"377.html"},{id:319,n:"Build a Queen",u:"319.html"},{id:581,n:"BuildNow.gg",u:"581.html"},{id:78,n:"Burrito Bison: Launcha Libre",u:"78.html"},{id:521,n:"Bust a Loop",u:"521.html"},{id:646,n:"Buster Jam",u:"646-fixed.html"},{id:378,n:"Camouflage and Sniper",u:"378.html"},{id:171,n:"Candy Crush",u:"171.html"},{id:150,n:"Cannon Balls 3D",u:"150.html"},{id:79,n:"Cannon Basketball",u:"79.html"},{id:80,n:"Cannon Basketball 2",u:"80.html"},{id:379,n:"Car Survival 3D",u:"379.html"},{id:202,n:"Carrom Clash",u:"202.html"},{id:758,n:"CaseOh's Basics in Eating and Fast Food",u:"758a.html"},{id:536,n:"Cat Connection",u:"536.html"},{id:537,n:"Cat Gunner: Super Zombie Shoot",u:"537.html"},{id:632,n:"Cave Story",u:"632-a.html"},{id:623,n:"Celeste",u:"623-work.html"},{id:440,n:"Celeste PICO",u:"440.html"},{id:730,n:"Cell Machine",u:"730.html"},{id:563,n:"CG FC 25",u:"563.html"},{id:253,n:"Chat Bot AI (A.I GPT)",u:"253-update.html"},{id:165,n:"Cheese Chompers 3D",u:"165.html"},{id:762,n:"Cheese Rolling",u:"762.html"},{id:151,n:"Chess Classic",u:"151.html"},{id:539,n:"Chiikawa Puzzle",u:"539.html"},{id:464,n:"Choppy Orc",u:"464.html"},{id:734,n:"Christmas Massacre",u:"734.html"},{id:274,n:"CircloO",u:"274.html"},{id:275,n:"CircloO 2",u:"275.html"},{id:380,n:"City Defense",u:"380.html"},{id:449,n:"City Smash",u:"449.html"},{id:545,n:"Clash Of Vikings",u:"545.html"},{id:259,n:"Class of '09",u:"259.html"},{id:381,n:"Clothing Shop 3D",u:"381.html"},{id:716,n:"Clover Pit",u:"716-fix2.html"},{id:81,n:"Cluster Rush",u:"81.html"},{id:429,n:"Code Editor",u:"429-f.html"},{id:31,n:"Color Match",u:"31.html"},{id:15,n:"Color Water Sort 3D",u:"15.html"},{id:773,n:"Command & Conquer",u:"773.html"},{id:82,n:"Cookie Clicker",u:"82-a.html"},{id:681,n:"Cooking Mama",u:"681.html"},{id:682,n:"Cooking Mama 2",u:"682.html"},{id:683,n:"Cooking Mama 3",u:"683.html"},{id:382,n:"Cool Cars Run 3D",u:"382.html"},{id:83,n:"Coreball",u:"83.html"},{id:564,n:"Count Masters: Stickman Games",u:"564.html"},{id:331,n:"Crazy Cars",u:"331.html"},{id:164,n:"Crazy Cattle 3D",u:"164-temp2.html"},{id:255,n:"Crazy Chicken 3D",u:"255.html"},{id:256,n:"Crazy Kitty 3D",u:"256.html"},{id:24,n:"Crossy Road",u:"24.html"},{id:825,n:"Cruelty Squad",u:"825.html"},{id:383,n:"Crush Cars 3D",u:"383.html"},{id:84,n:"Cubefield",u:"84.html"},{id:465,n:"Cuphead",u:"465-fix.html"},{id:85,n:"Cut the Rope",u:"85-f.html"},{id:212,n:"Cut the Rope",u:"212-f.html"},{id:214,n:"Cut the Rope: Holiday Gift",u:"214-fi.html"},{id:213,n:"Cut the Rope: Time Travel",u:"213-f.html"},{id:357,n:"Dadish",u:"357.html"},{id:355,n:"Dadish 2",u:"355.html"},{id:356,n:"Dadish 3",u:"356.html"},{id:358,n:"Dadish 3D",u:"358.html"},{id:359,n:"Daily Dadish",u:"359.html"},{id:565,n:"Dalgona Candy Honeycomb Cookie",u:"565.html"},{id:520,n:"Dan The Man",u:"520-fix.html"},{id:462,n:"DEAD PLATE",u:"462.html"},{id:211,n:"Death Run 3D",u:"211.html"},{id:560,n:"Deltatraveler",u:"560.html"},{id:384,n:"Destiny Run 3D",u:"384.html"},{id:385,n:"Destroy The Car 3D",u:"385.html"},{id:386,n:"Diamond Seeker",u:"386.html"},{id:759,n:"Dice a Million",u:"759.html"},{id:32,n:"Dig Deep",u:"32.html"},{id:727,n:"Dimension Incident",u:"727.html"},{id:193,n:"Do NOT Take This Cat Home",u:"193.html"},{id:511,n:"Doge Miner",u:"511.html"},{id:352,n:"DON'T YOU LECTURE ME",u:"352.html"},{id:470,n:"Doodle Jump",u:"470.html"},{id:203,n:"DOOM",u:"203-a.html"},{id:602,n:"Doom 2",u:"602.html"},{id:626,n:"Doom 3",u:"626-f.html"},{id:210,n:"Dragon vs Bricks",u:"210.html"},{id:86,n:"Draw Climber",u:"86.html"},{id:387,n:"Draw Joust",u:"387.html"},{id:209,n:"Draw the Hill",u:"209.html"},{id:152,n:"Draw the Line",u:"152.html"},{id:310,n:"Dreadhead Parkour",u:"310.html"},{id:276,n:"Drift Boss",u:"276.html"},{id:173,n:"Drift Hunters",u:"173.html"},{id:43,n:"Driven Wild",u:"43.html"},{id:234,n:"Duck Life",u:"234.html"},{id:235,n:"Duck Life 2",u:"235.html"},{id:236,n:"Duck Life 3",u:"236.html"},{id:237,n:"Duck Life 4",u:"237.html"},{id:238,n:"Duck Life 5",u:"238.html"},{id:695,n:"Duck Life 8",u:"695.html"},{id:738,n:"Dumb Ways to Die",u:"738-u.html"},{id:197,n:"Elastic Man",u:"197.html"},{id:87,n:"Emulator.JS",u:"87.html"},{id:286,n:"Endoparasitic",u:"286.html"},{id:724,n:"Endoparasitic 2",u:"724.html"},{id:631,n:"Endroll",u:"631-a.html"},{id:264,n:"Escape Road",u:"264.html"},{id:265,n:"Escape Road 2",u:"265-fix.html"},{id:792,n:"Escape Road 3",u:"792.html"},{id:744,n:"Escape Road City 2",u:"744-a.html"},{id:277,n:"Evil Glitch",u:"277.html"},{id:388,n:"Evolving Bombs 3D",u:"388.html"},{id:360,n:"EvoWars.io",u:"360.html"},{id:585,n:"Fallout",u:"585.html"},{id:735,n:"Famidash",u:"735.html"},{id:333,n:"Fancy Pants Adventure",u:"333.html"},{id:334,n:"Fancy Pants Adventure 2",u:"334.html"},{id:335,n:"Fancy Pants Adventure 3",u:"335.html"},{id:336,n:"Fancy Pants Adventure 4 Part 1",u:"336.html"},{id:337,n:"Fancy Pants Adventure 4 Part 2",u:"337.html"},{id:127,n:"Fashion Battle",u:"127.html"},{id:706,n:"Fear & Hunger",u:"706-fix.html"},{id:794,n:"Fear & Hunger 2: Termina",u:"794-fixed.html"},{id:728,n:"Fear Assessment",u:"728.html"},{id:460,n:"Fears to Fathom: Home Alone",u:"460.html"},{id:686,n:"FIFA 10",u:"686.html"},{id:685,n:"FIFA 11",u:"685.html"},{id:797,n:"Fih",u:"797.html"},{id:512,n:"Final Earth 2",u:"512.html"},{id:654,n:"Final Fantasy VII",u:"654.html"},{id:323,n:"Find the Alien",u:"323.html"},{id:389,n:"Fire and Frost Master",u:"389.html"},{id:88,n:"Fireboy and Watergirl 2",u:"88.html"},{id:89,n:"Fireboy and Watergirl 3",u:"89.html"},{id:761,n:"FISH",u:"761.html"},{id:390,n:"Fitness Empire",u:"390.html"},{id:764,n:"Five Night's at Shrek's Hotel",u:"764.html"},{id:503,n:"Five Nights at Candy's",u:"503.html"},{id:504,n:"Five Nights at Candy's 2",u:"504.html"},{id:710,n:"Five Nights at Epstein's",u:"710-fix.html"},{id:38,n:"Five Nights at Freddy's",u:"38.html"},{id:39,n:"Five Nights at Freddy's 2",u:"39.html"},{id:40,n:"Five Nights at Freddy's 3",u:"40.html"},{id:41,n:"Five Nights at Freddy's 4",u:"41.html"},{id:428,n:"Five Nights at Freddy's 4: Halloween",u:"428.html"},{id:191,n:"Five Nights at Freddy's: Pizza Simulator",u:"191.html"},{id:185,n:"Five Nights at Freddy's: Sister Location",u:"185.html"},{id:192,n:"Five Nights at Freddy's: Ultimate Custom Night",u:"192.html"},{id:190,n:"Five Nights at Freddy's: World",u:"190.html"},{id:704,n:"Five Nights at Freddy's: World Refreshed",u:"704-fix.html"},{id:813,n:"Five Nights at Frickbear's 3",u:"813-f3.html"},{id:750,n:"Five Nights at Last Breath",u:"750-u.html"},{id:204,n:"Five Nights at Winston's",u:"204-a.html"},{id:129,n:"Flappy Bird",u:"129.html"},{id:153,n:"Flappy Dunk",u:"153.html"},{id:391,n:"Flick Goal",u:"391.html"},{id:392,n:"Flip Master",u:"392.html"},{id:763,n:"Flying Gorilla 3D",u:"763.html"},{id:618,n:"FNF vs Bob v2.0 (Bob’s Onslaught)",u:"618.html"},{id:700,n:"FNF vs Pibby Corrupted",u:"700.html"},{id:600,n:"FNF Vs. Hypno's Lullaby v2",u:"600.html"},{id:601,n:"FNF Vs. Sonic.EXE 3.0/4.0",u:"601.html"},{id:548,n:"Football Bros",u:"548.html"},{id:154,n:"Fork n Sausage",u:"154.html"},{id:120,n:"Fortzone Battle Royale",u:"120.html"},{id:8,n:"Friday Night Funkin",u:"8-wow.html"},{id:610,n:"Friday Night Funkin vs Carol V2",u:"610.html"},{id:608,n:"Friday Night Funkin VS Impostor v4",u:"608.html"},{id:644,n:"Friday Night Funkin vs Nonsense",u:"644.html"},{id:559,n:"Friday Night Funkin vs Shaggy",u:"559.html"},{id:836,n:"Friday Night Funkin vs Shucks v2",u:"836.html"},{id:609,n:"Friday Night Funkin vs Sunday Remastered HD",u:"609-a.html"},{id:714,n:"Friday Night Funkin vs Tabi",u:"714.html"},{id:657,n:"Friday Night Funkin vs Undertale",u:"657.html"},{id:715,n:"Friday Night Funkin vs Zardy",u:"715.html"},{id:558,n:"Friday Night Funkin Vs. Cyber Sensation",u:"558.html"},{id:615,n:"Friday Night Funkin Vs. Dave and Bambi v3",u:"615.html-a"},{id:555,n:"Friday Night Funkin VS. KAPI",u:"555.html"},{id:556,n:"Friday Night Funkin VS. Sky",u:"556.html"},{id:636,n:"Friday Night Funkin' D-Sides",u:"636.html"},{id:613,n:"Friday Night Funkin' Drop and Roll, but Playable",u:"613.html"},{id:642,n:"Friday Night Funkin' Sunday Night Suicide: Rookies Edition",u:"642.html"},{id:583,n:"Friday Night Funkin' vs Hypno Lullaby",u:"583.html"},{id:639,n:"Friday Night Funkin' VS Impostor B-Sides",u:"639.html"},{id:498,n:"Friday Night Funkin': 17 Bucks: Floor 1",u:"498.html"},{id:690,n:"Friday Night Funkin': AKAGE",u:"690.html"},{id:475,n:"Friday Night Funkin': B-Sides",u:"475.html"},{id:634,n:"Friday Night Funkin': Chaos Nightmare - Sonic Vs. Fleetway",u:"634.html"},{id:484,n:"Friday Night Funkin': Creepypasta JP",u:"484.html"},{id:525,n:"Friday Night Funkin': Darkness Takeover",u:"525.html"},{id:499,n:"Friday Night Funkin': FIRE IN THE HOLE: Lobotomy Dash Funkin'",u:"499.html"},{id:621,n:"Friday Night Funkin': Gumballs",u:"621.html"},{id:691,n:"Friday Night Funkin': Heartbreak Havoc [Vs. Sky: REDUX]",u:"691.html"},{id:483,n:"Friday Night Funkin': Hit Single Real",u:"483.html"},{id:489,n:"Friday Night Funkin': Indie Cross",u:"489.html"},{id:496,n:"Friday Night Funkin': Jeffy's Endless Aethos",u:"496.html"},{id:582,n:"Friday Night Funkin': Mario's Madness",u:"582.html"},{id:488,n:"Friday Night Funkin': Mistful Crimson Morning Reboot",u:"488.html"},{id:478,n:"Friday Night Funkin': Neo",u:"478.html"},{id:541,n:"Friday Night Funkin': Pibby: Apocalypse",u:"541.html"},{id:619,n:"Friday Night Funkin': Rev-Mixed",u:"619.html"},{id:480,n:"Friday Night Funkin': Sarvente's Mid-Fight Masses",u:"480.html"},{id:486,n:"Friday Night Funkin': Sonic Legacy",u:"486.html"},{id:500,n:"Friday Night Funkin': TWIDDLEFINGER",u:"500.html"},{id:474,n:"Friday Night Funkin': V.S. Whitty",u:"474.html"},{id:497,n:"Friday Night Funkin': vs. BOPCITY",u:"497.html"},{id:485,n:"Friday Night Funkin': vs. Garcello",u:"485.html"},{id:477,n:"Friday Night Funkin': Vs. Hatsune Miku",u:"477.html"},{id:476,n:"Friday Night Funkin': Vs. Hex",u:"476.html"},{id:633,n:"Friday Night Funkin': VS. Impostor: Alternated",u:"633.html"},{id:487,n:"Friday Night Funkin': vs. QT",u:"487.html"},{id:481,n:"Friday Night Funkin': vs. Tricky",u:"481.html"},{id:509,n:"Friday Night Funkin’ Soft",u:"509.html"},{id:616,n:"Friday Night Funkin’ Wednesday's Infidelity",u:"616.html"},{id:261,n:"Fruit Ninja",u:"261.html"},{id:746,n:"Fundamental Paper Novel",u:"746.html"},{id:722,n:"Fused 240",u:"722.html"},{id:784,n:"Gabriel's Awesome Schoolhouse (GASH)",u:"784.html"},{id:729,n:"game inside a game inside a game inside a game inside a game inside a game",u:"729.html"},{id:519,n:"Generic Fighter Maybe",u:"519.html"},{id:785,n:"Geometry Dash",u:"785-upd2.html"},{id:27,n:"Geometry Dash Lite (REMAKE)",u:"27-f.html"},{id:625,n:"Get Yoked",u:"625.html"},{id:338,n:"Getaway Shootout",u:"338.html"},{id:557,n:"Getting Over It with Bennett Foddy",u:"557.html"},{id:393,n:"Giant Wanted",u:"393.html"},{id:4,n:"Gladihoppers",u:"4.html"},{id:37,n:"Gobble",u:"37.html"},{id:655,n:"Goblin Goopmaxxing",u:"655.html"},{id:434,n:"God's Flesh",u:"434.html"},{id:641,n:"Godzilla Daikaiju Battle Royale",u:"641.html"},{id:662,n:"Going Balls",u:"662.html"},{id:257,n:"Google Baseball",u:"257.html"},{id:361,n:"Google Feud",u:"361.html"},{id:668,n:"Gorilla Tag",u:"668-fix2.html"},{id:90,n:"Granny",u:"90-fix2.html"},{id:125,n:"Granny 2",u:"125.html"},{id:126,n:"Granny 3",u:"126.html"},{id:495,n:"groon groon, babey!",u:"495.html"},{id:603,n:"Growden.io",u:"603-aa.html"},{id:155,n:"Guess Their Answer",u:"155.html"},{id:394,n:"Gun Clone",u:"394.html"},{id:395,n:"Gun Runner",u:"395.html"},{id:91,n:"Gunspin",u:"91.html"},{id:262,n:"Half Life",u:"262.html"},{id:693,n:"Half Life: Opposing Force",u:"693.html"},{id:351,n:"Happy Sheepies",u:"351.html"},{id:624,n:"Happy Wheels",u:"624.html"},{id:156,n:"Harvest.io",u:"156.html"},{id:790,n:"Helltaker",u:"790.html"},{id:16,n:"Hide N Seek",u:"16.html"},{id:422,n:"High Heels",u:"422.html"},{id:567,n:"Highway Racer",u:"567.html"},{id:92,n:"Highway Racer 2",u:"92.html"},{id:568,n:"Highway Racer 2 REMASTERED",u:"568.html"},{id:157,n:"Hill Climb Racing Lite",u:"157.html"},{id:673,n:"Hobo 1",u:"673.html"},{id:674,n:"Hobo 2",u:"674.html"},{id:675,n:"Hobo 3",u:"675.html"},{id:676,n:"Hobo 4",u:"676.html"},{id:677,n:"Hobo 5",u:"677.html"},{id:678,n:"Hobo 6",u:"678.html"},{id:679,n:"Hobo 7",u:"679.html"},{id:468,n:"Hollow Knight",u:"468-f.html"},{id:771,n:"Hollow Knight: Silksong",u:"771-z.html"},{id:217,n:"Hotline Miami",u:"217-c.html"},{id:339,n:"House of Hazards",u:"339.html"},{id:569,n:"Hula Hoop Race",u:"569.html"},{id:482,n:"Human Expenditure Program",u:"482-2.html"},{id:798,n:"Hungry Lamu",u:"798.html"},{id:799,n:"Hungry Lamu 2",u:"799-fix.html"},{id:551,n:"Hypper Sandbox",u:"551.html"},{id:779,n:"I Have No Mouth, and I Must Scream",u:"779.html"},{id:834,n:"I Wanna Be The Guy",u:"834.html"},{id:491,n:"I woke up next to you again.",u:"491.html"},{id:5,n:"Ice Dodo",u:"5.html"},{id:362,n:"Idle Breakout",u:"362.html"},{id:294,n:"Idle Dice",u:"294.html"},{id:363,n:"Idle Lumber Inc",u:"363.html"},{id:364,n:"Idle Mining Empire",u:"364.html"},{id:667,n:"In Stars and Time",u:"667-fix.html"},{id:442,n:"Infinimoes",u:"442.html"},{id:837,n:"Into Space 2",u:"837.html"},{id:705,n:"Iron Lung",u:"705-fix.html"},{id:702,n:"JavascriptPS1",u:"702.html"},{id:751,n:"Jeffrey Epstein Basics In Education And Kidnapping",u:"751.html"},{id:543,n:"Jelly Drift",u:"543-a.html"},{id:315,n:"Jelly Mario",u:"315.html"},{id:570,n:"Jelly Restaurant",u:"570.html"},{id:7,n:"Jetpack Joyride",u:"7.html"},{id:93,n:"Johnny Trigger",u:"93.html"},{id:94,n:"Journey Downhill",u:"94.html"},{id:712,n:"Jumbo Mario",u:"712-f.html"},{id:826,n:"Just Shapes & Beats",u:"826-f.html"},{id:365,n:"JustFall.lol",u:"365.html"},{id:396,n:"Kaji Run",u:"396.html"},{id:542,n:"Karlson",u:"542-a.html"},{id:445,n:"Kindergarten",u:"445.html"},{id:446,n:"Kindergarten 2",u:"446.html"},{id:501,n:"Kindergarten 3",u:"501.html"},{id:684,n:"Kirby Squeak Squad",u:"684.html"},{id:680,n:"Kirby Super Star Ultra",u:"680.html"},{id:692,n:"Kirby ~ Soft & Wet",u:"692.html"},{id:325,n:"Kitchen Bazar",u:"325.html"},{id:441,n:"Kitty Toy",u:"441.html"},{id:463,n:"Lacey's Flash Games",u:"463.html"},{id:571,n:"Layers Roll",u:"571.html"},{id:572,n:"Lazy Jumper",u:"572.html"},{id:340,n:"Learn to Fly",u:"340.html"},{id:341,n:"Learn to Fly 2",u:"341.html"},{id:342,n:"Learn to Fly 3",u:"342.html"},{id:343,n:"Learn to Fly Idle",u:"343.html"},{id:793,n:"Lethal Ape",u:"793.html"},{id:95,n:"Line Rider",u:"95.html"},{id:302,n:"Little Runmo",u:"302.html"},{id:649,n:"Look Outside",u:"649.html"},{id:538,n:"Love Letters",u:"538.html"},{id:278,n:"Madalin Stunt Cars 2",u:"278.html"},{id:279,n:"Madalin Stunt Cars 3",u:"279.html"},{id:471,n:"Madness Combat: Project Nexus (classic)",u:"471.html"},{id:17,n:"Magic Tiles 3",u:"17.html"},{id:397,n:"Make a SuperBoat",u:"397.html"},{id:398,n:"Makeover Run",u:"398.html"},{id:573,n:"Man Runner 2048",u:"573.html"},{id:665,n:"Match Triple 3D",u:"665.html"},{id:324,n:"Maze Speedrun",u:"324.html"},{id:689,n:"Meatboy",u:"689.html"},{id:399,n:"Mega Car Jumps",u:"399.html"},{id:172,n:"Melon Playground",u:"172.html"},{id:366,n:"Merge Harvest",u:"366.html"},{id:599,n:"Metal Gear Solid",u:"599.html"},{id:658,n:"Midnight Shift",u:"658.html"},{id:650,n:"Milk Inside a Bag of Milk Inside a Bag of Milk",u:"650-f.html"},{id:651,n:"Milk Outside A Bag Of Milk Outside A Bag Of Milk",u:"651.html"},{id:648,n:"Mindwave",u:"648-el.html"},{id:182,n:"Minecraft 1.12.2",u:"182.html"},{id:183,n:"Minecraft 1.21.4",u:"183.html"},{id:297,n:"Minecraft 1.5.2",u:"297.html"},{id:181,n:"Minecraft 1.8.8",u:"181.html"},{id:298,n:"Minecraft Alpha 1.2.6",u:"298.html"},{id:299,n:"Minecraft Beta 1.3",u:"299.html"},{id:300,n:"Minecraft Beta 1.7.3",u:"300.html"},{id:301,n:"Minecraft Indev",u:"301.html"},{id:754,n:"Minecraft Pocket Edition",u:"754.html"},{id:313,n:"Minesweeper Mania",u:"313.html"},{id:604,n:"Minesweeper Plus",u:"604-a.html"},{id:814,n:"MiSide",u:"814.html"},{id:22,n:"Mob Control HTML5",u:"22.html"},{id:400,n:"Money Rush",u:"400.html"},{id:401,n:"Monster Box 3D",u:"401.html"},{id:36,n:"Monster Tracks",u:"36.html"},{id:96,n:"Moto X3M",u:"96.html"},{id:97,n:"Moto X3M 2",u:"97.html"},{id:98,n:"Moto X3M 3",u:"98.html"},{id:124,n:"Moto X3M Pool Party",u:"124.html"},{id:99,n:"Moto X3M Spooky",u:"99.html"},{id:100,n:"Moto X3M Winter",u:"100-f.html"},{id:774,n:"Mountain Bike Racer",u:"774.html"},{id:640,n:"Mutilate a Doll 2",u:"640.html"},{id:840,n:"My Talking Baby Hippo",u:"840-fix2.html"},{id:540,n:"myTeardrop",u:"540.html"},{id:180,n:"n-gon",u:"180.html"},{id:308,n:"Nazi Zombies: Portable",u:"308.html"},{id:810,n:"Need For Speed: Carbon",u:"810-fix.html"},{id:811,n:"Need For Speed: Most Wanted",u:"811.html"},{id:812,n:"Need For Speed: Underground 2",u:"812.html"},{id:708,n:"Needy Streamer Overload",u:"708-fix.html"},{id:587,n:"Newgrounds Rumble",u:"587.html"},{id:447,n:"Nijika's Ahoge",u:"447-e.html"},{id:101,n:"Ninja vs EvilCorp",u:"101.html"},{id:517,n:"Nubby's Number Factory",u:"517.html"},{id:629,n:"Off",u:"629.html"},{id:402,n:"Office Fight",u:"402.html"},{id:116,n:"Offroad Mountain Bike",u:"116.html"},{id:328,n:"Om Nom Run",u:"328.html"},{id:427,n:"OMORI",u:"427-z.html"},{id:622,n:"Oneshot (LEGACY)",u:"622.html"},{id:659,n:"Orange Roulette",u:"659.html"},{id:516,n:"Oshi Oshi Punch!",u:"516.html"},{id:130,n:"osu!",u:"130.html"},{id:777,n:"Outhold",u:"777.html"},{id:760,n:"Overburden",u:"760.html"},{id:1,n:"OvO",u:"1-fde.html"},{id:2,n:"OvO 2",u:"2e.html"},{id:3,n:"OvO 3 Dimensions",u:"3.html"},{id:592,n:"Pac Man World",u:"592.html"},{id:593,n:"Pac Man World 2",u:"593-f.html"},{id:158,n:"Pac-Man Superfast",u:"158.html"},{id:515,n:"PacMan (Horror)",u:"515.html"},{id:218,n:"Papa's Bakeria",u:"218.html"},{id:219,n:"Papa's Burgeria",u:"219.html"},{id:220,n:"Papa's Cheeseria",u:"220.html"},{id:221,n:"Papa's Cupcakeria",u:"221.html"},{id:222,n:"Papa's Donuteria",u:"222.html"},{id:223,n:"Papa's Freezeria",u:"223.html"},{id:224,n:"Papa's Hot Doggeria",u:"224.html"},{id:225,n:"Papa's Pancakeria",u:"225.html"},{id:226,n:"Papa's Pastaria",u:"226.html"},{id:227,n:"Papa's Pizeria",u:"227.html"},{id:228,n:"Papa's Scooperia",u:"228.html"},{id:229,n:"Papa's Sushiria",u:"229.html"},{id:230,n:"Papa's Taco Mia",u:"230.html"},{id:231,n:"Papa's Wingeria",u:"231.html"},{id:102,n:"Paper.io 2",u:"102.html"},{id:187,n:"Papers, Please",u:"187.html"},{id:280,n:"Papery Planes",u:"280.html"},{id:524,n:"Parappa The Rapper",u:"524.html"},{id:367,n:"Parking Fury 3D",u:"367.html"},{id:159,n:"Parking Rush",u:"159.html"},{id:717,n:"Peaks of Yore",u:"717-fix2.html"},{id:688,n:"Peggle",u:"688.html"},{id:194,n:"People Playground",u:"194-a.html"},{id:820,n:"Phoenix Wright - Ace Attorney",u:"820-fix.html"},{id:822,n:"Phoenix Wright - Ace Attorney - Justice for All",u:"822.html"},{id:824,n:"Phoenix Wright - Ace Attorney - Trials and Tribulations",u:"824.html"},{id:687,n:"Pico's School (1999)",u:"687.html"},{id:281,n:"Pixel Gun Survival",u:"281.html"},{id:267,n:"Pizza Tower",u:"267.html"},{id:628,n:"Pizza Tower: Scoutdigo",u:"628-f.html"},{id:805,n:"Plague Inc",u:"805.html"},{id:232,n:"Plants vs Zombies",u:"232.html"},{id:597,n:"Plants vs. Zombies 2 Gardenless",u:"597-a.html"},{id:660,n:"Please Dont Touch Anything",u:"660.html"},{id:544,n:"Plinko",u:"544.html"},{id:506,n:"Pokemon Emerald",u:"506.html"},{id:694,n:"Pokemon Firered",u:"694.html"},{id:696,n:"Pokemon HeartGold",u:"696.html"},{id:505,n:"Pokemon Red",u:"505.html"},{id:326,n:"Pokey Ball",u:"326.html"},{id:123,n:"Poly Track",u:"123-win.html"},{id:514,n:"PortaBoy+",u:"514.html"},{id:617,n:"Postal",u:"617-a.html"},{id:574,n:"Pottery Master",u:"574.html"},{id:23,n:"Pou",u:"23.html"},{id:743,n:"Power Hover",u:"743.html"},{id:282,n:"Protektor",u:"282.html"},{id:263,n:"Quake III Arena",u:"263.html"},{id:195,n:"R.E.P.O",u:"195.html"},{id:160,n:"Race Master 3D",u:"160.html"},{id:457,n:"Raft",u:"457.html"},{id:344,n:"Raft Wars",u:"344.html"},{id:345,n:"Raft Wars 2",u:"345.html"},{id:186,n:"Ragdoll Archers",u:"186.html"},{id:44,n:"Ragdoll Hit",u:"44-fix.html"},{id:307,n:"Rainbow Obby",u:"307.html"},{id:670,n:"Raldi's Crackhouse",u:"670.html"},{id:260,n:"RE:RUN",u:"260.html"},{id:701,n:"Real Flight Simulator",u:"701.html"},{id:546,n:"Recoil",u:"546.html"},{id:239,n:"Red Ball",u:"239.html"},{id:240,n:"Red Ball 2",u:"240.html"},{id:241,n:"Red Ball 3",u:"241.html"},{id:242,n:"Red Ball 4",u:"242.html"},{id:243,n:"Red Ball 4 Vol. 2",u:"243.html"},{id:244,n:"Red Ball 4 Vol. 3",u:"244.html"},{id:741,n:"Resident Evil",u:"741.html"},{id:742,n:"Resident Evil 2",u:"742.html"},{id:33,n:"Retro Bowl",u:"33.html"},{id:34,n:"Retro Bowl College",u:"34-fixed.html"},{id:809,n:"Rhythm Heaven",u:"809.html"},{id:421,n:"Rich Run 3D",u:"421.html"},{id:287,n:"Riddle School",u:"287.html"},{id:288,n:"Riddle School 2",u:"288.html"},{id:289,n:"Riddle School 3",u:"289.html"},{id:290,n:"Riddle School 4",u:"290.html"},{id:291,n:"Riddle School 5",u:"291.html"},{id:292,n:"Riddle Transfer",u:"292.html"},{id:293,n:"Riddle Transfer 2",u:"293.html"},{id:493,n:"RigBMX",u:"493.html"},{id:494,n:"RigBMX 2",u:"494.html"},{id:643,n:"Rio Rex",u:"643.html"},{id:42,n:"Road of Fury",u:"42.html"},{id:403,n:"Robot Invasion",u:"403.html"},{id:800,n:"Rocket Goal.io",u:"800-fix.html"},{id:656,n:"Rogue Sergeant The Final Operation",u:"656.html"},{id:553,n:"Rolling Sky",u:"553.html"},{id:208,n:"Rolly Vortex",u:"208.html"},{id:283,n:"Rooftop Snipers",u:"283.html"},{id:490,n:"Rooftop Snipers 2",u:"490.html"},{id:321,n:"Room Sort",u:"321.html"},{id:720,n:"Roulette Hero",u:"720.html"},{id:661,n:"Royal Towers: Medieval TD",u:"661.html"},{id:113,n:"Ruffle",u:"113.html"},{id:175,n:"Run 1",u:"175.html"},{id:176,n:"Run 2",u:"176.html"},{id:177,n:"Run 3",u:"177.html"},{id:839,n:"s.p.l.i.t",u:"839.html"},{id:737,n:"Saihate Station (さいはて駅)",u:"737.html"},{id:772,n:"Sam & Max Hit the Road",u:"772.html"},{id:309,n:"Sandboxels",u:"309.html"},{id:317,n:"sandspiel",u:"317.html"},{id:469,n:"sandstone",u:"469.html"},{id:311,n:"Sandtris",u:"311.html"},{id:802,n:"Scampton The Great",u:"802.html"},{id:765,n:"Scary Shawarma Kiosk: the ANOMALY",u:"765.html"},{id:605,n:"Schoolboy Runaway",u:"605-e.html"},{id:188,n:"Scrap Metal 3",u:"188e.html"},{id:781,n:"Scratch Inc",u:"781.html"},{id:404,n:"Seat Jam 3D",u:"404.html"},{id:778,n:"Serial Experiments Lain",u:"778.html"},{id:595,n:"Shapez.io",u:"595.html"},{id:721,n:"Shift at Midnight",u:"721.html"},{id:306,n:"Shipo.io",u:"306.html"},{id:405,n:"Shooting Master",u:"405.html"},{id:575,n:"Shovel 3D",u:"575.html"},{id:725,n:"ShredSauce",u:"725-ff.html"},{id:318,n:"Side Effects",u:"318.html"},{id:713,n:"Silent Hill",u:"713.html"},{id:576,n:"Sky Riders",u:"576.html"},{id:451,n:"Slender: The 8 Pages",u:"451.html"},{id:796,n:"Slendytubbies 1",u:"796.html"},{id:806,n:"Slendytubbies 2",u:"806.html"},{id:807,n:"Slendytubbies 2D",u:"807.html"},{id:128,n:"Slice it All",u:"128.html"},{id:591,n:"Slime Rancher",u:"591-awe.html"},{id:327,n:"Slime.io",u:"327.html"},{id:461,n:"Slither.io",u:"461.html"},{id:198,n:"Slope",u:"198.html"},{id:368,n:"Slope 2",u:"368.html"},{id:369,n:"Slowroads",u:"369.html"},{id:370,n:"Smash Karts",u:"370-f.html"},{id:119,n:"Snow Rider 3D",u:"119.html"},{id:207,n:"Snowbattle.io",u:"207.html"},{id:739,n:"Soccer Random",u:"739.html"},{id:118,n:"Solar Smash",u:"118.html"},{id:589,n:"Sonic CD",u:"589-f.html"},{id:590,n:"Sonic Mania",u:"590-f.html"},{id:770,n:"Sonic Robo Blast 2",u:"770-update.html"},{id:549,n:"Sonic the Hedgehog 2: Community's Cut",u:"549.html"},{id:550,n:"Sonic the Hedgehog 3: Angel Island Remastered",u:"550.html"},{id:598,n:"Sonic.EXE",u:"598.html"},{id:606,n:"Sonic.EXE (ORIGINAL)",u:"606-e.html"},{id:346,n:"Sort the Court",u:"346.html"},{id:179,n:"Soundboard",u:"179-a.html"},{id:630,n:"Space Funeral",u:"630.html"},{id:117,n:"Space Waves",u:"117-fix.html"},{id:473,n:"Spacebar Clicker",u:"473.html"},{id:808,n:"Spaceflight Simulator",u:"808.html"},{id:266,n:"Speed Stars",u:"266-a.html"},{id:635,n:"Spelunky Classic HD",u:"635.html"},{id:347,n:"SpiderDoll",u:"347.html"},{id:349,n:"Spiral Roll",u:"349.html"},{id:533,n:"SpongeBob SquarePants: Krabby Katch",u:"533.html"},{id:526,n:"SpongeBob SquarePants: Land Ho!",u:"526.html"},{id:529,n:"SpongeBob SquarePants: Sandy's Sponge Stacker",u:"529.html"},{id:527,n:"SpongeBob SquarePants: SpongeBob Run",u:"527.html"},{id:528,n:"SpongeBob SquarePants: Squidward's Sizzlin' Scare",u:"528.html"},{id:530,n:"SpongeBob SquarePants: Tasty Pastry Party",u:"530.html"},{id:531,n:"SpongeBob SquarePants: The Kah-Ray-Tay Squid",u:"531.html"},{id:532,n:"SpongeBob SquarePants: WereSquirrel",u:"532.html"},{id:9,n:"Sprunki",u:"9.html"},{id:18,n:"Stacky Dash",u:"18.html"},{id:789,n:"Stardew Valley",u:"789-fix.html"},{id:161,n:"State.io",u:"161.html"},{id:452,n:"Station 141",u:"452.html"},{id:453,n:"Station Saturn",u:"453.html"},{id:479,n:"Steal A Brainrot",u:"479.html"},{id:577,n:"Steal Brainrot Online",u:"577.html"},{id:767,n:"Stick Slasher",u:"767.html"},{id:666,n:"Stick War: Legacy",u:"666.html"},{id:502,n:"Stick With It",u:"502-fixed.html"},{id:578,n:"Stickman and Guns",u:"578.html"},{id:372,n:"Stickman Boost",u:"372.html"},{id:373,n:"Stickman Climb",u:"373.html"},{id:699,n:"Stickman Destruction",u:"699.html"},{id:769,n:"Stickman Duel",u:"769.html"},{id:371,n:"Stickman Fight Ragdoll",u:"371e.html"},{id:374,n:"Stickman Golf",u:"374e.html"},{id:11,n:"Stickman Hook",u:"11.html"},{id:768,n:"Stickman Kombat 2D",u:"768.html"},{id:584,n:"Stone Grass Mowing Simulator",u:"584.html"},{id:766,n:"Suika Game",u:"766.html"},{id:314,n:"Super Mario 63",u:"314.html"},{id:588,n:"Super Mario 64",u:"588.html"},{id:508,n:"Super Mario Bros",u:"508.html"},{id:736,n:"Super Mario Bros. Remastered",u:"736.html"},{id:749,n:"Super Monkey Ball 1&2",u:"749.html"},{id:647,n:"Super Smash Flash",u:"647.html"},{id:579,n:"Super Star Car",u:"579.html"},{id:233,n:"Superhot",u:"233.html"},{id:406,n:"Supermarket 3D",u:"406.html"},{id:19,n:"Supreme Duelist",u:"19.html"},{id:122,n:"Survival Race",u:"122.html"},{id:407,n:"Survive to Victory",u:"407.html"},{id:709,n:"Survivor.io",u:"709-fixagain.html"},{id:322,n:"Sushi Roll",u:"322.html"},{id:513,n:"Swordfight!!",u:"513.html"},{id:178,n:"Swords and Souls",u:"178.html"},{id:627,n:"Tag",u:"627.html"},{id:20,n:"Tall Man Run",u:"20a.html"},{id:664,n:"Tall.io",u:"664.html"},{id:305,n:"Tanuki Sunset",u:"305.html"},{id:607,n:"Tattletail",u:"607-e.html"},{id:534,n:"Teen Titans GO!: Jump Jousts",u:"534.html"},{id:535,n:"Teen Titans GO!: Jump Jousts 2",u:"535.html"},{id:411,n:"Telekinesis",u:"411.html"},{id:408,n:"Telekinesis Attack",u:"408.html"},{id:409,n:"Telekinesis Car",u:"409.html"},{id:410,n:"Telekinesis Drive",u:"410.html"},{id:10,n:"Temple Run 2",u:"10.html"},{id:669,n:"Terraria",u:"669.html"},{id:303,n:"Territorial.io",u:"303.html"},{id:733,n:"Tetris",u:"733.html"},{id:745,n:"Tetris",u:"745.html"},{id:216,n:"That's Not My Neighbor",u:"216.html"},{id:458,n:"The Deadseat",u:"458.html"},{id:507,n:"The Impossible Quiz",u:"507.html"},{id:612,n:"The Legend of Zelda Majora's Mask",u:"612.html"},{id:611,n:"The Legend of Zelda Ocarina of Time",u:"611.html"},{id:459,n:"The Man In The Window",u:"459.html"},{id:586,n:"The Oregon Trail",u:"586.html"},{id:103,n:"The World's Hardest Game",u:"103.html"},{id:104,n:"The World's Hardest Game 3",u:"104.html"},{id:105,n:"The World's Hardest Game 4",u:"105.html"},{id:348,n:"They Are Coming",u:"348.html"},{id:780,n:"Thing-Thing Arena 3",u:"780.html"},{id:106,n:"This Is The Only Level",u:"106.html"},{id:107,n:"This Is The Only Level 2",u:"107.html"},{id:620,n:"Three Goblets",u:"620.html"},{id:329,n:"TileTopia",u:"329a.html"},{id:199,n:"Time Shooter 1",u:"199.html"},{id:200,n:"Time Shooter 2",u:"200.html"},{id:201,n:"Time Shooter 3: SWAT",u:"201.html"},{id:108,n:"Tiny Fishing",u:"108.html"},{id:109,n:"Tomb Of The Mask",u:"109.html"},{id:510,n:"Tomodachi Collection",u:"510.html"},{id:110,n:"Toss The Turtle",u:"110-f.html"},{id:827,n:"Totally Accurate Battle Simulator (TABS)",u:"827-f.html"},{id:829,n:"Touhou 1 Touhou-Reiiden",u:"829.html"},{id:830,n:"Touhou 2 Touhou-Fuumaroku",u:"830.html"},{id:831,n:"Touhou 3 Touhou-Yumejikuu",u:"831.html"},{id:832,n:"Touhou 4 Touhou-Gensokyou",u:"832.html"},{id:833,n:"Touhou 5 Touhou-Kaikidan",u:"833.html"},{id:523,n:"Touhou Mother",u:"523-f.html"},{id:518,n:"Touhou: Luminous Strike",u:"518.html"},{id:162,n:"Tower Crash 3D",u:"162.html"},{id:614,n:"Toy Rider",u:"614.html"},{id:707,n:"Traffic Racer",u:"707-fix.html"},{id:580,n:"Traffic Rider",u:"580.html"},{id:801,n:"Trees Hate You",u:"801-fix.html"},{id:163,n:"Trivia Crack",u:"163.html"},{id:111,n:"Tube Jumpers",u:"111.html"},{id:413,n:"Tug of War with Cars",u:"413.html"},{id:206,n:"Tunnel Rush",u:"206.html"},{id:21,n:"Turbo Stars",u:"21.html"},{id:414,n:"Twerk Race 3D",u:"414.html"},{id:415,n:"Twisted Rope 3D",u:"415.html"},{id:818,n:"t³ (T cubed)",u:"818.html"},{id:196,n:"ULTRAKILL",u:"196-fixed.html"},{id:757,n:"Ultrapool",u:"757.html"},{id:782,n:"Um Jammer Lammy",u:"782f.html"},{id:748,n:"Undertale Last Breath PHASE THREE",u:"748.html"},{id:456,n:"Undertale Yellow",u:"456.html"},{id:731,n:"Undertale: Last Breath",u:"731.html"},{id:492,n:"UNDERWHEELS",u:"492.html"},{id:718,n:"Untitled Goose Game",u:"718.html"},{id:795,n:"UvuvwevwevweOnyetenvewveUgwemubwemOssas",u:"795.html"},{id:804,n:"Vampire Survivors",u:"804.html"},{id:838,n:"Vena",u:"838.html"},{id:45,n:"Vex 1",u:"45.html"},{id:46,n:"Vex 2",u:"46.html"},{id:47,n:"Vex 3",u:"47.html"},{id:48,n:"Vex 3 XMAS",u:"48.html"},{id:49,n:"Vex 4",u:"49.html"},{id:50,n:"Vex 5",u:"50.html"},{id:51,n:"Vex 6",u:"51.html"},{id:52,n:"Vex 7",u:"52.html"},{id:53,n:"Vex 8",u:"53.html"},{id:54,n:"Vex Challenges",u:"54.html"},{id:55,n:"Vex X3M",u:"55.html"},{id:56,n:"Vex X3M 2",u:"56.html"},{id:788,n:"Vib-Ribbon",u:"788.html"},{id:786,n:"Volley Random",u:"786.html"},{id:703,n:"VS Rewrite: ROUND 2",u:"703.html"},{id:416,n:"Wall Crawler",u:"416.html"},{id:417,n:"War Regions",u:"417.html"},{id:284,n:"War The Knights",u:"284.html"},{id:841,n:"WarioWare: Touched!",u:"841.html"},{id:594,n:"Waterworks!",u:"594.html"},{id:671,n:"We Become What We Behold",u:"671.html"},{id:418,n:"Weapon Craft Run",u:"418.html"},{id:420,n:"Weapon Scale",u:"420.html"},{id:419,n:"Weapon Upgrade Rush",u:"419.html"},{id:423,n:"WebFishing",u:"423.html"},{id:245,n:"Wheely",u:"245.html"},{id:246,n:"Wheely 2",u:"246.html"},{id:247,n:"Wheely 3",u:"247.html"},{id:248,n:"Wheely 4",u:"248.html"},{id:249,n:"Wheely 5",u:"249.html"},{id:250,n:"Wheely 6",u:"250.html"},{id:251,n:"Wheely 7",u:"251.html"},{id:252,n:"Wheely 8",u:"252.html"},{id:791,n:"Who's Your Daddy",u:"791.html"},{id:756,n:"Witch's Heart",u:"756-f.html"},{id:112,n:"Wordle",u:"112-fix.html"},{id:174,n:"World Box",u:"174.html"},{id:747,n:"Worst Time Simulator",u:"747.html"},{id:554,n:"Yandere Simulator",u:"554.html"},{id:835,n:"YoHoHo.io",u:"835.html"},{id:776,n:"Your Only Move Is HUSTLE",u:"776.html"},{id:433,n:"Yume Nikki",u:"433.html"}];
+
+  var input        = document.getElementById('url-input');
+  var frame        = document.getElementById('frame');
+  var landing      = document.getElementById('landing');
+  var landingGrid  = document.getElementById('landing-grid');
+  var errPanel     = document.getElementById('error-panel');
+  var errCode      = document.getElementById('err-code');
+  var errMsg       = document.getElementById('err-msg');
+  var errHint      = document.getElementById('err-hint');
+  var errDirectBtn = document.getElementById('err-direct-btn');
+
+  errDirectBtn.addEventListener('click', function() {
+    if (_lastGameUrl) {
+      errPanel.style.display = 'none';
+      _tryDirectIframe(_lastGameUrl);
+    }
+  });
+  var progress     = document.getElementById('progress');
+  var badge        = document.getElementById('scheme-badge');
+  var drawer       = document.getElementById('settings-drawer');
+  var overlay      = document.getElementById('settings-overlay');
+  var fontInput    = document.getElementById('font-input');
+  var fontStatus   = document.getElementById('font-status');
+  var colorInk     = document.getElementById('color-ink');
+  var colorPaper   = document.getElementById('color-paper');
+  var colorBorder  = document.getElementById('color-border');
+  var searchEng    = document.getElementById('search-engine');
+  var shortcutList = document.getElementById('shortcut-list');
+  var scIconInput  = document.getElementById('sc-icon');
+  var scNameInput  = document.getElementById('sc-name');
+  var scUrlInput   = document.getElementById('sc-url');
+  var root         = document.documentElement;
+  var gamesSection = document.getElementById('games-section');
+  var shortcutsSection = document.getElementById('shortcuts-section');
+  var gamesGrid    = document.getElementById('games-grid');
+  var gamesEmpty   = document.getElementById('games-empty');
+  var gameSearch   = document.getElementById('game-search');
+
+  var navHistory    = [];
+  var histIdx       = -1;
+  var currentEngine = 'duckduckgo';
+  var currentTab    = 'shortcuts';
+  var currentProxy  = 'auto';
+
+  // _INTERNAL_PROXY is always included in auto racing but never shown in the UI
+  var _INTERNAL_PROXY = { id: '_internal', fn: function(u){ return '/api/proxy?url=' + encodeURIComponent(u); } };
+
+  // Ordered roughly by reliability (tested 2026-08). Dead/rate-limited services
+  // kept only as last-resort fallbacks so Auto still has options if the primary
+  // three are blocked on a particular network.
+  var PROXY_LIST = [
+    { id: 'corssh',       label: 'cors.sh',              fn: function(u){ return 'https://cors.sh/' + u; } },
+    { id: 'corsproxy_sh', label: 'proxy.cors.sh',        fn: function(u){ return 'https://proxy.cors.sh/' + u; } },
+    { id: 'corseu',       label: 'cors.eu.org',          fn: function(u){ return 'https://cors.eu.org/' + u; } },
+    { id: 'allorigins',   label: 'AllOrigins',           fn: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
+    { id: 'corsproxy',    label: 'CORSProxy.org',        fn: function(u){ return 'https://corsproxy.org/?' + encodeURIComponent(u); } },
+    { id: 'corslol',      label: 'cors.lol',             fn: function(u){ return 'https://api.cors.lol/?url=' + encodeURIComponent(u); } }
+  ];
+
+  var ENGINES = {
+    duckduckgo: 'https://duckduckgo.com/?q=',
+    google:     'https://www.google.com/search?q=',
+    bing:       'https://www.bing.com/search?q=',
+    brave:      'https://search.brave.com/search?q='
+  };
+
+  var DEFAULT_SHORTCUTS = [
+    { icon: '🐙', name: 'GitHub',     url: 'https://github.com' },
+    { icon: '📖', name: 'Wikipedia',  url: 'https://wikipedia.org' },
+    { icon: '🤖', name: 'Reddit',     url: 'https://old.reddit.com' },
+    { icon: '🦆', name: 'DuckDuckGo', url: 'https://duckduckgo.com' },
+    { icon: '📰', name: 'HN',         url: 'https://news.ycombinator.com' },
+    { icon: '🗄️', name: 'Archive',    url: 'https://archive.org' },
+    { icon: '▶️', name: 'YouTube',    url: 'https://www.youtube.com' },
+    { icon: '🐦', name: 'X / Twitter',url: 'https://x.com' },
+    { icon: '💬', name: 'Discord',    url: 'https://discord.com/app' },
+    { icon: '🎮', name: 'Steam',      url: 'https://store.steampowered.com' },
+    { icon: '📧', name: 'Gmail',      url: 'https://mail.google.com' },
+    { icon: '🗺️', name: 'Maps',       url: 'https://maps.google.com' }
+  ];
+
+  var shortcuts = [];
+
+  function isUrl(raw) {
+    if (/^https?:\/\//i.test(raw)) return true;
+    if (raw.indexOf(' ') === -1 && /^[^\s]+\.[a-z]{2,}(\/|$)/i.test(raw)) return true;
+    return false;
+  }
+
+  function canonicalize(raw) {
+    raw = raw.trim();
+    if (!raw) return null;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (isUrl(raw)) return 'https://' + raw;
+    var base = ENGINES[currentEngine] || ENGINES.duckduckgo;
+    return base + encodeURIComponent(raw);
+  }
+
+  var _currentBlobUrl = null;
+
+  function _looksLikeSuccess(text) {
+    if (!text || text.length < 32) return false;
+    var t = text.trimStart();
+    // Reject obvious proxy error / rate-limit / auth pages
+    if (/^Rate limit exceeded/i.test(t)) return false;
+    if (/^\{"error"/.test(t) || /^\{"success"\s*:\s*false/.test(t)) return false;
+    if (/Missing required request header/i.test(t)) return false;
+    if (/A valid API key is required/i.test(t)) return false;
+    if (/Internal Server Error/i.test(t) && t.length < 400) return false;
+    // Accept HTML, or JSON wrappers that some proxies return
+    if (t.charAt(0) === '<' || t.charAt(0) === '{') return true;
+    // Plain text / scripts / other assets that are still useful
+    return text.length > 80;
+  }
+
+  function _unwrapProxyBody(text) {
+    if (!text) return text;
+    var t = text.replace(/^\uFEFF/, '').trimStart();
+    if (t.charAt(0) === '{') {
+      try {
+        var j = JSON.parse(t);
+        if (typeof j.contents === 'string') return j.contents;
+        if (typeof j.content  === 'string') return j.content;
+        if (typeof j.data     === 'string') return j.data;
+        if (typeof j.body     === 'string') return j.body;
+        if (typeof j.html     === 'string') return j.html;
+      } catch (e) {}
+    }
+    return text;
+  }
+
+  function _fetchViaProxy(url, onOk, onErr) {
+    var endpoints;
+    if (currentProxy !== 'auto') {
+      var chosen = PROXY_LIST.filter(function(p){ return p.id === currentProxy; })[0];
+      endpoints = chosen ? [chosen.fn(url)] : [_INTERNAL_PROXY.fn(url)];
+    } else {
+      var pool = [];
+      // Internal proxy only works when served from a real server (not file://)
+      if (location.protocol !== 'file:') pool.push(_INTERNAL_PROXY.fn(url));
+      // Live providers first (order matches PROXY_LIST reliability ranking)
+      PROXY_LIST.forEach(function(p){ pool.push(p.fn(url)); });
+      // Direct fetch as last resort — works when the target allows CORS
+      // (jsDelivr game assets do). Blob frame still forces text/html.
+      pool.push(url);
+      endpoints = pool;
+    }
+
+    // Single proxy — XHR with timeout + content sanity check
+    if (endpoints.length === 1) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', endpoints[0], true);
+      xhr.timeout = 16000;
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 400 && _looksLikeSuccess(xhr.responseText)) {
+          onOk(_unwrapProxyBody(xhr.responseText));
+        } else { onErr(); }
+      };
+      xhr.onerror = onErr;
+      xhr.ontimeout = onErr;
+      xhr.send();
+      return;
+    }
+
+    // Auto mode — race all endpoints; first valid body wins
+    var controllers = endpoints.map(function() { return new AbortController(); });
+    var settled = false;
+    var failures = 0;
+
+    function abortAll() {
+      if (globalTimer) clearTimeout(globalTimer);
+      controllers.forEach(function(c) { try { c.abort(); } catch(e) {} });
+    }
+
+    function settle(ok, val) {
+      if (settled) return;
+      settled = true;
+      abortAll();
+      if (ok) onOk(val); else onErr();
+    }
+
+    var globalTimer = setTimeout(function() { settle(false); }, 16000);
+
+    endpoints.forEach(function(ep, idx) {
+      fetch(ep, {
+        signal: controllers[idx].signal,
+        // Some older proxies are picky about Origin; sending one improves odds
+        headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' }
+      })
+        .then(function(resp) {
+          if (settled) return null;
+          if (!resp.ok) { throw new Error('status ' + resp.status); }
+          return resp.text();
+        })
+        .then(function(text) {
+          if (settled || text === null) return;
+          if (_looksLikeSuccess(text)) {
+            settle(true, _unwrapProxyBody(text));
+          } else {
+            failures++;
+            if (failures === endpoints.length) settle(false);
+          }
+        })
+        .catch(function(err) {
+          if (err && err.name === 'AbortError') return;
+          if (settled) return;
+          failures++;
+          if (failures === endpoints.length) settle(false);
+        });
+    });
+  }
+
+  function _setBlobFrame(rawHtml, originUrl) {
+    // Use the directory as base so relative paths (../assets/x.js) resolve correctly
+    var baseUrl = originUrl.endsWith('/') ? originUrl : originUrl.substring(0, originUrl.lastIndexOf('/') + 1);
+    var baseTag = '<base href="' + baseUrl + '">';
+    if (/<head[^>]*>/i.test(rawHtml)) {
+      rawHtml = rawHtml.replace(/(<head[^>]*>)/i, '$1' + baseTag);
+    } else {
+      rawHtml = '<head>' + baseTag + '</head>' + rawHtml;
+    }
+    // Ensure the content-type is text/html so the browser renders it
+    if (_currentBlobUrl) { try { URL.revokeObjectURL(_currentBlobUrl); } catch (e) {} }
+    var blob = new Blob([rawHtml], { type: 'text/html;charset=utf-8' });
+    _currentBlobUrl = URL.createObjectURL(blob);
+    frame.src = _currentBlobUrl;
+    doneProgress();
+  }
+
+  function syncScheme(val) {
+    badge.style.opacity = /^https?:\/\//i.test(val) ? '0' : '1';
+  }
+
+  function showProgress() {
+    progress.classList.remove('done');
+    void progress.offsetWidth;
+    progress.classList.add('loading');
+  }
+  function doneProgress() {
+    progress.classList.remove('loading');
+    progress.classList.add('done');
+    setTimeout(function () { progress.classList.remove('done'); }, 700);
+  }
+
+  function showFrame() {
+    landing.style.display  = 'none';
+    errPanel.style.display = 'none';
+    frame.style.display    = 'block';
+  }
+
+  function showError(code, msg, hint) {
+    doneProgress();
+    frame.style.display    = 'none';
+    landing.style.display  = 'none';
+    errCode.textContent    = code || 'ERR';
+    errMsg.textContent     = msg  || 'Cannot reach destination';
+    errHint.textContent    = hint || 'The site may have blocked embedding, or the URL may be unreachable.';
+    errPanel.style.display = 'flex';
+  }
+
+  function loadUrl(url) {
+    if (!url) return;
+    input.value = url.replace(/^https?:\/\//i, '');
+    syncScheme(url);
+    showProgress();
+    showFrame();
+    if (histIdx < navHistory.length - 1) navHistory = navHistory.slice(0, histIdx + 1);
+    navHistory.push(url);
+    histIdx = navHistory.length - 1;
+    _fetchViaProxy(url,
+      function (body) {
+        body = body.replace(/^\uFEFF/, '');
+        if (body.trimStart().charAt(0) === '{') {
+          try { var j = JSON.parse(body); body = j.contents || j.data || body; } catch(e) {}
+        }
+        _setBlobFrame(body, url);
+      },
+      function ()     { showError('ERR', 'Cannot reach destination', 'The site may be blocking proxies, or the URL may be unreachable.'); }
+    );
+  }
+
+  function navigate() {
+    var url = canonicalize(input.value);
+    if (url) loadUrl(url);
+  }
+
+  function setFrameUrl(url) {
+    input.value = url.replace(/^https?:\/\//i, '');
+    syncScheme(url);
+    showProgress();
+    errPanel.style.display = 'none';
+    frame.style.display    = 'block';
+    _fetchViaProxy(url,
+      function (body) { _setBlobFrame(body, url); },
+      function ()     { showError('ERR', 'Cannot reach destination', 'Proxy failed.'); }
+    );
+  }
+
+  function goHome() {
+    frame.style.display    = 'none';
+    errPanel.style.display = 'none';
+    landing.style.display  = 'flex';
+    landing.style.flexDirection = 'column';
+    landing.style.alignItems = 'center';
+    input.value = '';
+    syncScheme('');
+    frame.src = 'about:blank';
+  }
+
+  /* ── Tips rotator ── */
+  var TIPS = [
+    'Search or enter a URL above',
+    'Press Ctrl+L to focus the address bar',
+    'Use the Games tab to browse 800+ unblocked games',
+    'Open Settings to pick from 15 preset themes',
+    'Tab cloaking disguises this page in your browser tab',
+    'Use custom colors in Settings to build your own theme',
+    'Click the fullscreen button for an immersive view',
+    'Open any game in a new tab with the ↗ button in the nav bar',
+    'Add custom shortcuts in Settings → Shortcuts',
+    'Back and forward arrows work just like a real browser',
+    'Tab cloaking syncs across all open tabs automatically',
+    'The Chat tab lets you talk to other Monochromatic users',
+    'Games load via multiple proxy fallbacks for reliability',
+    'Cloak this tab as Google Classroom to stay hidden',
+    'All theme colors are fully customizable in Settings',
+    'The proxy auto-selects the fastest available relay',
+    'Type any search query — it opens in your chosen search engine',
+    'Switch search engines between Google, Bing, and DuckDuckGo'
+  ];
+  var _tipEl   = document.getElementById('tip-text');
+  var _tipIdx  = 0;
+  function _rotateTip() {
+    _tipEl.classList.add('fade');
+    setTimeout(function() {
+      _tipIdx = (_tipIdx + 1) % TIPS.length;
+      _tipEl.textContent = TIPS[_tipIdx];
+      _tipEl.classList.remove('fade');
+    }, 420);
+  }
+  setInterval(_rotateTip, 4000);
+
+  frame.addEventListener('load', function () {
+    doneProgress();
+    try {
+      var loc = frame.contentWindow.location.href;
+      if (loc && loc !== 'about:blank') {
+        var match = loc.match(/[?&]url=([^&]*)/);
+        if (match) {
+          var real = decodeURIComponent(match[1]);
+          input.value = real.replace(/^https?:\/\//i, '');
+          syncScheme(real);
+          if (histIdx >= 0) navHistory[histIdx] = real;
+        }
+      }
+    } catch (e) {}
+  });
+
+  frame.addEventListener('error', function () {
+    showError('ERR', 'Cannot reach destination', 'The site may be unreachable.');
+  });
+
+  window.addEventListener('message', function (e) {
+    if (!e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'proxy-url' && e.data.url) {
+      var url = e.data.url;
+      input.value = url.replace(/^https?:\/\//i, '');
+      syncScheme(url);
+      if (histIdx >= 0) navHistory[histIdx] = url;
+    }
+    if (e.data.type === 'proxy-error') {
+      var status = e.data.status || 502;
+      var msg    = e.data.message || 'Request failed';
+      var hint   = status === 403
+        ? 'This site has blocked access.'
+        : status === 502
+        ? 'Could not reach the server. It may be down or blocking the proxy.'
+        : 'Something went wrong (status ' + status + ').';
+      showError(String(status), msg.length > 60 ? msg.slice(0, 60) + '\u2026' : msg, hint);
+    }
+  });
+
+  document.getElementById('btn-back').addEventListener('click', function () {
+    if (histIdx > 0) { histIdx--; setFrameUrl(navHistory[histIdx]); }
+  });
+  document.getElementById('btn-fwd').addEventListener('click', function () {
+    if (histIdx < navHistory.length - 1) { histIdx++; setFrameUrl(navHistory[histIdx]); }
+  });
+  document.getElementById('btn-reload').addEventListener('click', function () {
+    if (frame.src && frame.src !== location.origin + '/') {
+      showProgress();
+      errPanel.style.display = 'none';
+      frame.style.display    = 'block';
+      var cur = frame.src;
+      frame.src = '';
+      frame.src = cur;
+    }
+  });
+  document.getElementById('btn-home').addEventListener('click', goHome);
+
+  document.getElementById('btn-newtab').addEventListener('click', function() {
+    // If a game is loaded, pop it out via the proxy-fetch approach so it renders properly.
+    if (_lastGameUrl) {
+      var activeGame = GAMES.find(function(g) { return gameUrl(g) === _lastGameUrl; });
+      if (activeGame) { popoutGame(activeGame); return; }
+    }
+    // Otherwise open the URL bar value as a normal tab.
+    var raw = (document.getElementById('url-input').value || '').trim();
+    if (!raw) return;
+    var target = /^https?:\/\//.test(raw) ? raw : 'https://' + raw;
+    window.open(target, '_blank', 'noopener,noreferrer');
+  });
+
+  var btnFs = document.getElementById('btn-fullscreen');
+  var svgExpand   = '<polyline points="1,5 1,1 5,1"/><polyline points="11,1 15,1 15,5"/><polyline points="15,11 15,15 11,15"/><polyline points="5,15 1,15 1,11"/>';
+  var svgCompress = '<polyline points="5,1 5,5 1,5"/><polyline points="15,5 11,5 11,1"/><polyline points="11,15 11,11 15,11"/><polyline points="1,11 5,11 5,15"/>';
+  btnFs.addEventListener('click', function () {
+    if (!document.fullscreenElement) {
+      // Fullscreen the iframe if a page/game is loaded, otherwise the whole doc
+      var target = (frame.style.display !== 'none') ? frame : document.documentElement;
+      target.requestFullscreen && target.requestFullscreen();
+    } else {
+      document.exitFullscreen && document.exitFullscreen();
+    }
+  });
+  document.addEventListener('fullscreenchange', function () {
+    btnFs.querySelector('svg').innerHTML = document.fullscreenElement ? svgCompress : svgExpand;
+  });
+  document.getElementById('go-btn').addEventListener('click', navigate);
+
+  input.addEventListener('input',   function () { syncScheme(this.value); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') navigate();
+    if (e.key === 'Escape') this.blur();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== input && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault(); input.focus(); input.select();
+    }
+    if (e.key === 'Escape') closeSettings();
+  });
+
+  /* ── Tab switching ── */
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      currentTab = tab;
+      if (tab === 'shortcuts') {
+        shortcutsSection.style.display = 'block';
+        gamesSection.style.display = 'none';
+        chatSection.style.display = 'none';
+      } else if (tab === 'games') {
+        shortcutsSection.style.display = 'none';
+        gamesSection.style.display = 'block';
+        chatSection.style.display = 'none';
+        if (!gamesGrid.children.length) renderGamesGrid('');
+      } else if (tab === 'chat') {
+        shortcutsSection.style.display = 'none';
+        gamesSection.style.display = 'none';
+        chatSection.style.display = 'flex';
+      }
+    });
+  });
+
+  /* ── Games ── */
+  function gameUrl(game) {
+      return HTML_URL + '/' + (game.u || game.id + '.html');
+    }
+
+    var _lastGameUrl = '';
+
+    function _tryDirectIframe(url) {
+      _lastGameUrl = url;
+      showFrame();
+      frame.src = url;
+      setTimeout(doneProgress, 1800);
+    }
+
+    function loadGameDirect(game) {
+      var url = gameUrl(game);
+      _lastGameUrl = url;
+      input.value = game.n;
+      badge.style.opacity = '0';
+      showProgress();
+      if (histIdx < navHistory.length - 1) navHistory = navHistory.slice(0, histIdx + 1);
+      navHistory.push(url);
+      histIdx = navHistory.length - 1;
+
+      showFrame();
+      // Fetch via proxy so we can inject a <base> tag for relative asset paths.
+      _fetchViaProxy(url,
+        function (body) {
+          body = body.replace(/^\uFEFF/, '');
+          if (body.trimStart().charAt(0) === '{') {
+            try { var j = JSON.parse(body); body = j.contents || j.data || body; } catch(e) {}
+          }
+          _setBlobFrame(body, url);
+        },
+        function () {
+          doneProgress();
+          frame.style.display = 'none';
+          landing.style.display = 'none';
+          errCode.textContent = 'UNAVAILABLE';
+          errMsg.textContent  = 'This game could not be loaded';
+          errHint.textContent = 'Your network may be blocking game content. Try switching to a different proxy in Settings, or use this app from an unrestricted network.';
+          errDirectBtn.style.display = 'inline-block';
+          errPanel.style.display = 'flex';
+        }
+      );
+    }
+
+  function popoutGame(game) {
+    var url = gameUrl(game);
+    var w = window.open('about:blank', '_blank');
+    if (!w) return; // popup blocked
+    var baseUrl = url.endsWith('/') ? url : url.substring(0, url.lastIndexOf('/') + 1);
+    w.document.open();
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + game.n + '</title><style>body,html{margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#888;font-size:13px;letter-spacing:.05em;}</style></head><body>Loading\u2026</body></html>');
+    w.document.close();
+    _fetchViaProxy(url,
+      function(body) {
+        body = body.replace(/^\uFEFF/, '');
+        if (body.trimStart().charAt(0) === '{') {
+          try { var j = JSON.parse(body); body = j.contents || j.data || body; } catch(e) {} }
+        var baseTag = '<base href="' + baseUrl + '">';
+        if (/<head[^>]*>/i.test(body)) {
+          body = body.replace(/(<head[^>]*>)/i, '$1' + baseTag);
+        } else {
+          body = '<head>' + baseTag + '</head>' + body;
+        }
+        w.document.open();
+        w.document.write(body);
+        w.document.close();
+      },
+      function() {
+        w.document.open();
+        w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Error</title><style>body,html{margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#888;font-size:13px;letter-spacing:.05em;flex-direction:column;gap:8px;}</style></head><body><div style="color:#e55">UNAVAILABLE</div><div>This game could not be loaded in a new tab.</div></body></html>');
+        w.document.close();
+      }
+    );
+  }
+
+  var gameObserver = null;
+
+  function renderGamesGrid(query) {
+    // Disconnect any previous observer
+    if (gameObserver) { gameObserver.disconnect(); gameObserver = null; }
+
+    var q = (query || '').toLowerCase().trim();
+    var filtered = q ? GAMES.filter(function(g) { return g.n.toLowerCase().indexOf(q) >= 0; }) : GAMES;
+    gamesGrid.innerHTML = '';
+
+    if (filtered.length === 0) {
+      gamesEmpty.style.display = 'block';
+      return;
+    }
+    gamesEmpty.style.display = 'none';
+
+    // Build all card DOM nodes — images use data-src, no src yet
+    var frag = document.createDocumentFragment();
+    filtered.forEach(function(game) {
+      var card = document.createElement('button');
+      card.className = 'game-card';
+      var coverSrc = COVER_URL + '/' + game.id + '.png';
+      var img = document.createElement('img');
+      img.dataset.src = coverSrc;
+      img.alt = game.n;
+      img.onerror = function() {
+        var colors=['#6b7280','#4b5563','#374151','#1f2937','#111827','#1e3a5f','#1a3a2a','#3b1a1a','#2a1a3b'];
+        var col = colors[game.id % colors.length];
+        this.style.display = 'none';
+        var ph = document.createElement('div');
+        ph.style.cssText = 'width:100%;aspect-ratio:16/9;border-radius:3px;margin-bottom:7px;display:flex;align-items:center;justify-content:center;background:'+col+';font-size:22px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:-.02em;font-family:Syne,sans-serif;';
+        ph.textContent = game.n.charAt(0).toUpperCase();
+        this.parentNode.insertBefore(ph, this);
+      };
+      var label = document.createElement('span');
+      label.className = 'game-name';
+      label.textContent = game.n;
+      card.appendChild(img);
+      card.appendChild(label);
+      card.addEventListener('click', function() { loadGameDirect(game); });
+      frag.appendChild(card);
+    });
+    gamesGrid.appendChild(frag);
+
+    // IntersectionObserver: load image on enter, deload on exit
+    gameObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        var img = entry.target.querySelector('img');
+        if (!img) return;
+        if (entry.isIntersecting) {
+          // Load: set src from data-src
+          if (img.dataset.src && img.src !== img.dataset.src) {
+            img.src = img.dataset.src;
+          }
+        } else {
+          // Deload: remove src to free memory
+          if (img.src) {
+            img.removeAttribute('src');
+          }
+        }
+      });
+    }, {
+      root: landing,
+      rootMargin: '300px 0px',
+      threshold: 0
+    });
+
+    // Observe every card
+    var cards = gamesGrid.querySelectorAll('.game-card');
+    for (var i = 0; i < cards.length; i++) {
+      gameObserver.observe(cards[i]);
+    }
+  }
+
+  gameSearch.addEventListener('input', function() {
+    renderGamesGrid(this.value);
+  });
+
+  /* ── Shortcuts ── */
+  function loadShortcuts() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('mono-shortcuts') || 'null');
+      // Use defaults when nothing saved, or when the saved list is empty
+      if (Array.isArray(saved) && saved.length > 0) {
+        shortcuts = saved;
+      } else {
+        shortcuts = DEFAULT_SHORTCUTS.slice();
+        // Persist defaults so the grid stays filled next visit
+        try { localStorage.setItem('mono-shortcuts', JSON.stringify(shortcuts)); } catch (e2) {}
+      }
+    } catch (e) {
+      shortcuts = DEFAULT_SHORTCUTS.slice();
+    }
+  }
+
+  function saveShortcuts() {
+    try { localStorage.setItem('mono-shortcuts', JSON.stringify(shortcuts)); } catch (e) {}
+  }
+
+  function renderLandingGrid() {
+    landingGrid.innerHTML = '';
+    shortcuts.forEach(function (sc) {
+      var btn = document.createElement('button');
+      btn.className = 'quick-link';
+      btn.innerHTML = '<span class="ql-icon">' + sc.icon + '</span>' + sc.name;
+      btn.addEventListener('click', function () { loadUrl(sc.url); });
+      landingGrid.appendChild(btn);
+    });
+  }
+
+  function renderShortcutList() {
+    shortcutList.innerHTML = '';
+    shortcuts.forEach(function (sc, i) {
+      var row = document.createElement('div');
+      row.className = 'sc-row';
+      row.innerHTML =
+        '<span class="sc-icon">' + sc.icon + '</span>' +
+        '<span class="sc-name" title="' + sc.url + '">' + sc.name + '</span>' +
+        '<button class="sc-del" title="Remove" data-idx="' + i + '">\u00d7</button>';
+      row.querySelector('.sc-del').addEventListener('click', function () {
+        shortcuts.splice(parseInt(this.getAttribute('data-idx')), 1);
+        saveShortcuts();
+        renderLandingGrid();
+        renderShortcutList();
+      });
+      shortcutList.appendChild(row);
+    });
+    if (shortcuts.length === 0) {
+      shortcutList.innerHTML = '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:#bbb;letter-spacing:.04em;padding:6px 0;">No shortcuts yet.</div>';
+    }
+  }
+
+  function addShortcut() {
+    var icon = scIconInput.value.trim() || '\uD83D\uDD17';
+    var name = scNameInput.value.trim();
+    var url  = scUrlInput.value.trim();
+    if (!name || !url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    shortcuts.push({ icon: icon, name: name, url: url });
+    saveShortcuts();
+    renderLandingGrid();
+    renderShortcutList();
+    scIconInput.value = '';
+    scNameInput.value = '';
+    scUrlInput.value  = '';
+    scNameInput.focus();
+  }
+
+  document.getElementById('sc-add-btn').addEventListener('click', addShortcut);
+  scUrlInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') addShortcut(); });
+
+  /* ── Suggestion Box ── */
+  var suggestOverlay  = document.getElementById('suggest-overlay');
+  var suggestTextarea = document.getElementById('suggest-textarea');
+  var suggestStatus   = document.getElementById('suggest-status');
+  var suggestSubmit   = document.getElementById('suggest-submit');
+
+  function openSuggest() {
+    suggestOverlay.classList.add('open');
+    suggestTextarea.focus();
+  }
+  function closeSuggest() {
+    suggestOverlay.classList.remove('open');
+  }
+
+  document.getElementById('suggest-btn').addEventListener('click', openSuggest);
+  document.getElementById('suggest-close').addEventListener('click', closeSuggest);
+  suggestOverlay.addEventListener('click', function(e) { if (e.target === suggestOverlay) closeSuggest(); });
+
+  suggestSubmit.addEventListener('click', function() {
+    var msg = suggestTextarea.value.trim();
+    if (!msg) { suggestStatus.textContent = 'Please write something first.'; suggestStatus.className = 'err'; return; }
+    var mailto = 'mailto:jshockley32@pdsdstudents.org'
+      + '?subject=' + encodeURIComponent('Monochromatic Suggestion')
+      + '&body=' + encodeURIComponent(msg);
+    window.open(mailto, '_blank');
+    suggestStatus.textContent = 'Your email client opened — just hit send!';
+    suggestStatus.className = 'ok';
+    suggestTextarea.value = '';
+    setTimeout(closeSuggest, 2200);
+  });
+
+  /* ── Settings ── */
+  function openSettings() { drawer.classList.add('open'); overlay.classList.add('open'); }
+  function closeSettings() { drawer.classList.remove('open'); overlay.classList.remove('open'); }
+
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('settings-close').addEventListener('click', closeSettings);
+  overlay.addEventListener('click', closeSettings);
+
+  var THEMES = {
+    'default':  { ink: '#0a0a0a', paper: '#f5f4f0', border: '#d0cfc9' },
+    'dark':     { ink: '#e8e8e8', paper: '#0f0f0f', border: '#2a2a2a' },
+    'sepia':    { ink: '#3b2f1e', paper: '#f4efe6', border: '#d9cebc' },
+    'slate':    { ink: '#c9d3e0', paper: '#1e2430', border: '#2e3848' },
+    'rose':     { ink: '#5c1a2a', paper: '#fff1f2', border: '#f9c7cd' },
+    'forest':   { ink: '#a8d5b0', paper: '#0d1f12', border: '#1e3a25' },
+    /* — extended themes — */
+    'ocean':    { ink: '#b8d4e8', paper: '#0c1e2e', border: '#1c3a52' },
+    'midnight': { ink: '#d4d0ff', paper: '#0d0b1e', border: '#2c2860' },
+    'lavender': { ink: '#4a3d6b', paper: '#f0edf8', border: '#d0c8ea' },
+    'sand':     { ink: '#5c4a2a', paper: '#faf4e6', border: '#e8d8b8' },
+    'mint':     { ink: '#1a3d2e', paper: '#edf8f2', border: '#b8dec8' },
+    'coffee':   { ink: '#e8d5b8', paper: '#180e08', border: '#3a2510' },
+    'crimson':  { ink: '#f5d0d0', paper: '#1a0808', border: '#3c1212' },
+    'steel':    { ink: '#3a4a5c', paper: '#f2f4f6', border: '#c8d4e0' },
+    'amber':    { ink: '#6b4a00', paper: '#fff8e8', border: '#e8d4a0' }
+  };
+
+  function hexToRgb(h) {
+    return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  }
+  function blendHex(h1, h2, t) {
+    var a=hexToRgb(h1), b=hexToRgb(h2);
+    return '#'+[0,1,2].map(function(i){ return Math.round(a[i]+(b[i]-a[i])*t).toString(16).padStart(2,'0'); }).join('');
+  }
+
+  function applyColors(ink, paper, border) {
+    root.style.setProperty('--ink', ink);
+    root.style.setProperty('--paper', paper);
+    root.style.setProperty('--border', border);
+    root.style.setProperty('--mid', blendHex(ink, paper, 0.5));
+    var rgb = hexToRgb(ink);
+    root.style.setProperty('--glow', 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',.06)');
+  }
+
+  function applyTheme(name) {
+    var t = THEMES[name]; if (!t) return;
+    applyColors(t.ink, t.paper, t.border);
+    colorInk.value = t.ink; colorPaper.value = t.paper; colorBorder.value = t.border;
+    document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('active'); });
+    var sw = document.querySelector('[data-theme="'+name+'"]');
+    if (sw) sw.classList.add('active');
+    saveSettings();
+  }
+
+  document.querySelectorAll('.theme-swatch').forEach(function (sw) {
+    sw.addEventListener('click', function () { applyTheme(this.getAttribute('data-theme')); });
+  });
+
+  var _themeExtended = false;
+  document.getElementById('theme-more-btn').addEventListener('click', function() {
+    _themeExtended = !_themeExtended;
+    document.getElementById('theme-extended').style.display = _themeExtended ? 'grid' : 'none';
+    this.textContent = _themeExtended ? 'Show less ▴' : 'Show more ▾';
+  });
+
+  function applyCustomColor() {
+    applyColors(colorInk.value, colorPaper.value, colorBorder.value);
+    document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('active'); });
+    saveSettings();
+  }
+  colorInk.addEventListener('input', applyCustomColor);
+  colorPaper.addEventListener('input', applyCustomColor);
+  colorBorder.addEventListener('input', applyCustomColor);
+
+  function applyFont(fontName) {
+    fontName = (fontName || fontInput.value).trim();
+    fontStatus.className = '';
+    if (!fontName) {
+      var _pfs = document.getElementById('_mono-font-override'); if (_pfs) _pfs.parentNode.removeChild(_pfs);
+      fontStatus.textContent = '';
+      saveSettings();
+      return;
+    }
+    fontStatus.textContent = 'Loading\u2026';
+    var encoded = fontName.replace(/ /g, '+');
+    var link = document.createElement('link');
+    link.rel  = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + encoded + ':ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300&display=swap';
+    link.onload = function () {
+      var prevStyle = document.getElementById('_mono-font-override');
+      if (prevStyle) prevStyle.parentNode.removeChild(prevStyle);
+      var s = document.createElement('style');
+      s.id = '_mono-font-override';
+      s.textContent = '*, *::before, *::after { font-family: "' + fontName + '", sans-serif !important; }';
+      document.head.appendChild(s);
+      fontStatus.className = 'ok';
+      fontStatus.textContent = '\u2713 ' + fontName + ' applied';
+      saveSettings();
+    };
+    link.onerror = function () {
+      fontStatus.className = 'err';
+      fontStatus.textContent = '\u2717 Font not found \u2014 check the exact Google Fonts name';
+    };
+    document.head.appendChild(link);
+  }
+
+  document.getElementById('font-apply-btn').addEventListener('click', function () { applyFont(); });
+  fontInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') applyFont(); });
+
+  var proxySelect = document.getElementById('proxy-select');
+
+  proxySelect.addEventListener('change', function () {
+    currentProxy = this.value;
+    saveSettings();
+  });
+
+  searchEng.addEventListener('change', function () {
+    currentEngine = this.value;
+    saveSettings();
+  });
+
+    document.getElementById('reset-btn').addEventListener('click', function () {
+    applyTheme('default');
+    fontInput.value = ''; fontStatus.textContent = ''; fontStatus.className = '';
+    var _pfs = document.getElementById('_mono-font-override'); if (_pfs) _pfs.parentNode.removeChild(_pfs);
+    currentEngine = 'duckduckgo'; searchEng.value = 'duckduckgo';
+    currentProxy = 'auto'; proxySelect.value = 'auto';
+    shortcuts = DEFAULT_SHORTCUTS.slice();
+    saveShortcuts();
+    renderLandingGrid();
+    renderShortcutList();
+    try { localStorage.removeItem('mono-settings'); } catch (e) {}
+    // Keep panic key on reset — intentional
+  });
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('mono-settings', JSON.stringify({
+        ink: colorInk.value, paper: colorPaper.value, border: colorBorder.value,
+        font: fontInput.value.trim(), engine: currentEngine, proxy: currentProxy
+      }));
+    } catch (e) {}
+  }
+
+  function loadSettings() {
+    try {
+      var s = JSON.parse(localStorage.getItem('mono-settings') || 'null');
+      if (!s) return;
+      if (s.ink && s.paper && s.border) {
+        colorInk.value = s.ink; colorPaper.value = s.paper; colorBorder.value = s.border;
+        applyColors(s.ink, s.paper, s.border);
+        Object.keys(THEMES).forEach(function(name) {
+          var t = THEMES[name];
+          if (t.ink === s.ink && t.paper === s.paper && t.border === s.border) {
+            document.querySelectorAll('.theme-swatch').forEach(function(sw){ sw.classList.remove('active'); });
+            var sw = document.querySelector('[data-theme="'+name+'"]');
+            if (sw) sw.classList.add('active');
+          }
+        });
+      }
+      if (s.engine && ENGINES[s.engine]) { currentEngine = s.engine; searchEng.value = s.engine; }
+      if (s.font) { fontInput.value = s.font; applyFont(s.font); }
+      if (s.proxy) {
+        var validProxy = PROXY_LIST.some(function(p){ return p.id === s.proxy; }) || s.proxy === 'auto';
+        if (validProxy) { currentProxy = s.proxy; proxySelect.value = s.proxy; }
+      }
+    } catch (e) {}
+  }
+
+
+
+  /* ── Tab Cloak ── */
+  var cloakDataUrl = '';
+
+  function _setFavicon(url) {
+    document.querySelectorAll("link[rel*='icon']").forEach(function(el){ el.parentNode.removeChild(el); });
+    if (url) {
+      var lnk = document.createElement('link');
+      lnk.rel = 'icon';
+      lnk.href = url;
+      document.head.appendChild(lnk);
+    }
+  }
+
+  function _updateCloakPreview(title, iconUrl) {
+    var thumb = document.getElementById('cloak-favicon-thumb');
+    var label = document.getElementById('cloak-tab-label');
+    if (iconUrl) {
+      thumb.src = iconUrl;
+      thumb.style.display = 'block';
+    } else {
+      thumb.style.display = 'none';
+    }
+    if (title || iconUrl) {
+      label.textContent = title || '(icon only)';
+      label.style.color = 'var(--ink)';
+    } else {
+      label.textContent = 'No cloak active';
+      label.style.color = 'var(--mid)';
+    }
+  }
+
+  function applyCloak(title, iconUrl) {
+    if (title) document.title = title;
+    if (iconUrl) _setFavicon(iconUrl);
+    _updateCloakPreview(title, iconUrl);
+    try {
+      localStorage.setItem('mono-cloak', JSON.stringify({ title: title || '', icon: iconUrl || '' }));
+    } catch(e) {}
+    // Notify about:blank wrapper (if any) so it can sync its title + favicon
+    try { window.parent.postMessage({ type: 'mono-cloak', title: title || '', icon: iconUrl || '' }, '*'); } catch(e) {}
+  }
+
+  function loadCloak() {
+    try {
+      var c = JSON.parse(localStorage.getItem('mono-cloak') || 'null');
+      if (!c) return;
+      if (c.title) { document.getElementById('cloak-title').value = c.title; document.title = c.title; }
+      if (c.icon)  { document.getElementById('cloak-icon-url').value = c.icon; _setFavicon(c.icon); }
+      if (c.title || c.icon) _updateCloakPreview(c.title, c.icon);
+    } catch(e) {}
+  }
+
+  document.getElementById('cloak-file-input').addEventListener('change', function() {
+    var file = this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      cloakDataUrl = e.target.result;
+      document.getElementById('cloak-icon-url').value = '';
+      document.getElementById('cloak-icon-url').placeholder = 'Using uploaded image…';
+      _updateCloakPreview(document.getElementById('cloak-title').value, cloakDataUrl);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('cloak-apply-btn').addEventListener('click', function() {
+    var title   = document.getElementById('cloak-title').value.trim();
+    var iconUrl = cloakDataUrl || document.getElementById('cloak-icon-url').value.trim();
+    applyCloak(title, iconUrl);
+  });
+
+  document.getElementById('cloak-clear-btn').addEventListener('click', function() {
+    document.getElementById('cloak-title').value = '';
+    document.getElementById('cloak-icon-url').value = '';
+    document.getElementById('cloak-icon-url').placeholder = 'Or paste icon URL…';
+    cloakDataUrl = '';
+    document.title = 'Monochromatic';
+    _setFavicon('');
+    _updateCloakPreview('', '');
+    try { localStorage.removeItem('mono-cloak'); } catch(e) {}
+  });
+
+  /* ── Cloak Presets ── */
+  var CLOAK_PRESETS = {
+    schoology:  { title: 'Schoology',         icon: 'data:image/png;base64,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' },
+    classroom:  { title: 'Google Classroom',  icon: 'https://ssl.gstatic.com/classroom/favicon.png' },
+    google:     { title: 'Google',            icon: 'https://www.google.com/favicon.ico' },
+    clever:     { title: 'Clever',            icon: 'data:image/png;base64,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' },
+    ixl:        { title: 'IXL',               icon: 'https://www.ixl.com/favicon.ico' },
+    edpuzzle:   { title: 'Edpuzzle',          icon: 'data:image/png;base64,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' },
+    nearpod:    { title: 'Nearpod',           icon: 'https://nearpod.com/favicon.ico' },
+    slides:     { title: 'Google Slides',     icon: 'https://ssl.gstatic.com/docs/presentations/images/favicon5.ico' },
+    docs:       { title: 'Google Docs',       icon: 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico' },
+    mcgraw:     { title: 'McGraw-Hill',       icon: 'https://www.mheducation.com/favicon.ico' }
+  };
+
+  document.getElementById('cloak-presets-grid').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-preset]');
+    if (!btn) return;
+    var key = btn.getAttribute('data-preset');
+
+    if (key === 'aboutblank') {
+      var blankTitle = document.title;
+      var blankIconSrc = cloakDataUrl || document.getElementById('cloak-icon-url').value.trim();
+
+      function _openBlankWithIcon(iconDataUrl) {
+        var faviconTag = iconDataUrl ? '<link id="mono-favicon" rel="icon" type="image/png" href="' + iconDataUrl + '">' : '<link id="mono-favicon" rel="icon" href="">';
+        var listenerScript = '<script>' +
+          'window.addEventListener("message",function(e){' +
+            'if(!e.data||e.data.type!=="mono-cloak")return;' +
+            'if(e.data.title)document.title=e.data.title;' +
+            'var lnk=document.getElementById("mono-favicon");' +
+            'if(!lnk){lnk=document.createElement("link");lnk.id="mono-favicon";lnk.rel="icon";document.head.appendChild(lnk);}' +
+            'if(e.data.icon)lnk.href=e.data.icon;' +
+          '});' +
+        '<\/script>';
+        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + blankTitle + '</title>' + faviconTag + listenerScript + '</head>' +
+          '<body style="margin:0;padding:0;overflow:hidden;">' +
+          '<iframe src="' + location.href + '" style="width:100vw;height:100vh;border:none;" ' +
+          'allow="fullscreen *; autoplay *; clipboard-write *; pointer-lock *; downloads *; payment *; camera *; microphone *" allowfullscreen></iframe>' +
+          '</body></html>';
+        var w = window.open('about:blank', '_blank');
+        if (w) { w.document.write(html); w.document.close(); }
+      }
+
+      if (blankIconSrc && blankIconSrc.startsWith('data:')) {
+        _openBlankWithIcon(blankIconSrc);
+      } else if (blankIconSrc) {
+        // Fetch icon and convert to data URL so it works in about:blank context
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', blankIconSrc, true);
+        xhr.responseType = 'blob';
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            var reader = new FileReader();
+            reader.onloadend = function() { _openBlankWithIcon(reader.result); };
+            reader.readAsDataURL(xhr.response);
+          } else { _openBlankWithIcon(null); }
+        };
+        xhr.onerror = function() { _openBlankWithIcon(null); };
+        xhr.send();
+      } else {
+        _openBlankWithIcon(null);
+      }
+      return;
+    }
+
+    var preset = CLOAK_PRESETS[key];
+    if (!preset) return;
+    document.getElementById('cloak-title').value = preset.title;
+    document.getElementById('cloak-icon-url').value = preset.icon;
+    cloakDataUrl = '';
+    document.getElementById('cloak-icon-url').placeholder = 'Or paste icon URL…';
+    applyCloak(preset.title, preset.icon);
+  });
+
+
+
+  /* ── Global Chatroom ── */
+  var chatSection      = document.getElementById('chat-section');
+  var chatSetup        = document.getElementById('chat-setup');
+  var chatRoom         = document.getElementById('chat-room');
+  var chatNameInput    = document.getElementById('chat-name');
+  var chatColorInput   = document.getElementById('chat-color');
+  var chatJoinBtn      = document.getElementById('chat-join-btn');
+  var chatLeaveBtn     = document.getElementById('chat-leave-btn');
+  var chatMessages     = document.getElementById('chat-messages');
+  var chatInput        = document.getElementById('chat-input');
+  var chatSendBtn      = document.getElementById('chat-send-btn');
+  var chatConnStatus   = document.getElementById('chat-conn-status');
+  var chatColorDot     = document.getElementById('chat-color-dot');
+  var chatDisplayName  = document.getElementById('chat-display-name');
+  var chatServerUrlEl  = document.getElementById('chat-server-url');
+
+  var _chatWs       = null;
+  var _chatName     = '';
+  var _chatColor    = '#6366f1';
+  var _chatJoined   = false;
+  var _chatReconTimer = null;
+
+  // No baked-in third-party server (old Replit host is dead). Prefer a user-set
+  // URL, then same-origin /api/chat when the page is hosted next to the server.
+  var _CHAT_DEFAULT_URL = '';
+
+  function _chatWsUrl() {
+    var stored = (localStorage.getItem('mono-chat-server') || '').trim();
+    if (stored) return stored;
+    if (location.protocol === 'https:' && location.hostname) return 'wss://' + location.host + '/api/chat';
+    if (location.protocol === 'http:'  && location.hostname && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      return 'ws://' + location.host + '/api/chat';
+    }
+    return _CHAT_DEFAULT_URL;
+  }
+
+  function _chatSetStatus(s) {
+    chatConnStatus.textContent = s === 'connected' ? 'Connected' : s === 'connecting' ? 'Connecting…' : 'Disconnected';
+    chatConnStatus.className = s;
+  }
+
+  function _chatAddMessage(msg) {
+    var isEmpty = chatMessages.querySelector('.chat-system');
+    if (isEmpty && isEmpty.textContent === 'Loading history…') isEmpty.remove();
+    var noMsg = chatMessages.querySelector('#chat-empty');
+    if (noMsg) noMsg.remove();
+
+    var div = document.createElement('div');
+    div.className = 'chat-msg';
+    var t = new Date(msg.ts || Date.now());
+    var hh = t.getHours().toString().padStart(2,'0');
+    var mm = t.getMinutes().toString().padStart(2,'0');
+    div.innerHTML =
+      '<div class="chat-msg-header">' +
+        '<span class="chat-msg-name" style="color:' + _escHtml(msg.color || '#888') + '">' + _escHtml(msg.name || '?') + '</span>' +
+        '<span class="chat-msg-time">' + hh + ':' + mm + '</span>' +
+      '</div>' +
+      '<div class="chat-msg-text">' + _escHtml(msg.text || '') + '</div>';
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function _chatAddSystem(text) {
+    var div = document.createElement('div');
+    div.className = 'chat-system';
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _chatConnect() {
+    if (_chatWs) { try { _chatWs.close(); } catch(e){} _chatWs = null; }
+    var url = _chatWsUrl();
+    if (!url) {
+      _chatSetStatus('disconnected');
+      _chatAddSystem('No chat server configured. Deploy chat-server.js (see package), paste its wss:// URL above, then rejoin.');
+      return;
+    }
+    _chatSetStatus('connecting');
+    var ws;
+    try { ws = new WebSocket(url); } catch(e) { _chatSetStatus('disconnected'); return; }
+    _chatWs = ws;
+
+    ws.onopen = function() {
+      _chatSetStatus('connected');
+      if (_chatReconTimer) { clearTimeout(_chatReconTimer); _chatReconTimer = null; }
+    };
+    ws.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'history') {
+          chatMessages.innerHTML = '';
+          if (!msg.messages || !msg.messages.length) {
+            chatMessages.innerHTML = '<div class="chat-system">No messages yet. Say hello!</div>';
+          } else {
+            msg.messages.forEach(function(m) { _chatAddMessage(m); });
+          }
+        } else if (msg.type === 'message') {
+          _chatAddMessage(msg);
+        }
+      } catch(err) {}
+    };
+    ws.onerror = function() { _chatSetStatus('disconnected'); };
+    ws.onclose = function() {
+      _chatSetStatus('disconnected');
+      if (_chatJoined) {
+        _chatReconTimer = setTimeout(function() { if (_chatJoined) _chatConnect(); }, 3000);
+      }
+    };
+  }
+
+  function _chatSend() {
+    var text = chatInput.value.trim();
+    if (!text || !_chatWs || _chatWs.readyState !== WebSocket.OPEN) return;
+    _chatWs.send(JSON.stringify({ name: _chatName, color: _chatColor, text: text }));
+    chatInput.value = '';
+  }
+
+  function _chatJoin() {
+    var name = chatNameInput.value.trim();
+    if (!name) { chatNameInput.focus(); return; }
+    _chatName  = name;
+    _chatColor = chatColorInput.value;
+    _chatJoined = true;
+    try { localStorage.setItem('mono-chat-name', name); localStorage.setItem('mono-chat-color', _chatColor); } catch(e) {}
+    chatColorDot.style.background = _chatColor;
+    chatDisplayName.textContent = name;
+    chatSetup.style.display = 'none';
+    chatRoom.style.display  = 'flex';
+    chatMessages.innerHTML = '<div class="chat-system">Loading history…</div>';
+    _chatConnect();
+    chatInput.focus();
+  }
+
+  function _chatLeave() {
+    _chatJoined = false;
+    if (_chatWs) { try { _chatWs.close(); } catch(e){} _chatWs = null; }
+    if (_chatReconTimer) { clearTimeout(_chatReconTimer); _chatReconTimer = null; }
+    chatRoom.style.display  = 'none';
+    chatSetup.style.display = 'flex';
+    _chatSetStatus('disconnected');
+  }
+
+  chatJoinBtn.addEventListener('click', _chatJoin);
+  chatNameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') _chatJoin(); });
+  chatLeaveBtn.addEventListener('click', _chatLeave);
+  chatSendBtn.addEventListener('click', _chatSend);
+  chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') _chatSend(); });
+
+  document.getElementById('chat-server-save-btn').addEventListener('click', function() {
+    var url = chatServerUrlEl.value.trim();
+    try { localStorage.setItem('mono-chat-server', url); } catch(e) {}
+    if (_chatJoined) _chatConnect();
+  });
+
+  // Restore saved name/color
+  try {
+    var sn = localStorage.getItem('mono-chat-name');
+    var sc = localStorage.getItem('mono-chat-color');
+    var su = localStorage.getItem('mono-chat-server');
+    if (sn) chatNameInput.value = sn;
+    if (sc) chatColorInput.value = sc;
+    if (su) chatServerUrlEl.value = su;
+  } catch(e) {}
+
+  // Populate setup server row with current active URL
+  var chatSetupServer = document.getElementById('chat-setup-server');
+  var chatServerHint  = document.getElementById('chat-server-hint');
+  var chatServerApplyBtn = document.getElementById('chat-server-apply-btn');
+
+  function _chatUpdateSetupHint() {
+    var url = _chatWsUrl();
+    chatSetupServer.value = localStorage.getItem('mono-chat-server') || '';
+    chatSetupServer.placeholder = url || 'wss://your-server.example.com/api/chat';
+    if (url) {
+      chatServerHint.textContent = 'Will connect to: ' + url;
+    } else {
+      chatServerHint.textContent = 'No server yet — deploy chat-server.js and paste the wss:// URL above so messages sync for everyone.';
+    }
+  }
+  _chatUpdateSetupHint();
+
+  chatServerApplyBtn.addEventListener('click', function() {
+    var url = chatSetupServer.value.trim();
+    try { localStorage.setItem('mono-chat-server', url); } catch(e) {}
+    if (chatServerUrlEl) { try { chatServerUrlEl.value = url; } catch(e) {} }
+    _chatUpdateSetupHint();
+    if (_chatJoined) _chatConnect();
+  });
+  chatSetupServer.addEventListener('keydown', function(e) { if (e.key === 'Enter') chatServerApplyBtn.click(); });
+
+  /* ── Panic Key ── */
+  var panicKeyBtn   = document.getElementById('panic-key-btn');
+  var panicUrlInput = document.getElementById('panic-url');
+  var panicStatus   = document.getElementById('panic-status');
+  var panicListening = false;
+  var panicKey = '';
+  var panicUrl = '';
+
+  function loadPanic() {
+    try {
+      var p = JSON.parse(localStorage.getItem('mono-panic') || 'null');
+      if (p && p.key) {
+        panicKey = p.key;
+        panicUrl = p.url || 'https://google.com';
+        panicKeyBtn.textContent = p.key === ' ' ? 'Space' : p.key.toUpperCase();
+        panicUrlInput.value = panicUrl;
+        panicStatus.textContent = '✓ Panic key active';
+        panicStatus.className = 'set';
+      }
+    } catch(e) {}
+  }
+
+  function savePanic() {
+    panicUrl = panicUrlInput.value.trim() || 'https://google.com';
+    if (!/^https?:\/\//i.test(panicUrl)) panicUrl = 'https://' + panicUrl;
+    panicUrlInput.value = panicUrl;
+    try { localStorage.setItem('mono-panic', JSON.stringify({ key: panicKey, url: panicUrl })); } catch(e) {}
+    panicStatus.textContent = panicKey ? '✓ Panic key active' : 'No key set yet';
+    panicStatus.className = panicKey ? 'set' : '';
+  }
+
+  panicKeyBtn.addEventListener('click', function() {
+    panicListening = true;
+    this.classList.add('listening');
+    this.textContent = 'Press a key…';
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (panicListening) {
+      e.preventDefault();
+      panicKey = e.key;
+      panicKeyBtn.textContent = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      panicKeyBtn.classList.remove('listening');
+      panicListening = false;
+      return;
+    }
+    // Panic trigger — only fires outside of input fields
+    if (panicKey && e.key === panicKey) {
+      var active = document.activeElement;
+      var tag = active ? active.tagName : '';
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+        window.location.replace(panicUrl || 'https://google.com');
+      }
+    }
+  }, true);
+
+  document.getElementById('panic-save-btn').addEventListener('click', savePanic);
+  panicUrlInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') savePanic(); });
+
+  loadPanic();
+
+  loadShortcuts();
+  renderLandingGrid();
+  renderShortcutList();
+  loadSettings();
+  loadCloak();
+})();
+</script>
+</body>
+</html>
